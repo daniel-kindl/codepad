@@ -103,15 +103,23 @@ public sealed class ExperimentTests
         Assert.Throws<ArgumentNullException>(() => experiment.WithInput(null!, s_edited));
     }
 
-    [Fact]
-    public void EditWithAnEarlierClockTimeKeepsModifiedAt()
+    [Theory]
+    [InlineData("source")]
+    [InlineData("title")]
+    [InlineData("input")]
+    public void EditWithAnEarlierClockTimeKeepsModifiedAt(string field)
     {
         // A clock change must not lose an edit, so the edit applies and ModifiedAt never goes back.
         Experiment original = NewExperiment();
+        DateTimeOffset earlier = s_created.AddMinutes(-10);
 
-        Experiment edited = original.WithSource("2", s_created.AddMinutes(-10));
+        Experiment edited = field switch
+        {
+            "source" => original.WithSource("2", earlier),
+            "title" => original.WithTitle("Two", earlier),
+            _ => original.WithInput("stdin", earlier),
+        };
 
-        Assert.Equal("2", edited.Source);
         Assert.Equal(2, edited.Revision);
         Assert.Equal(s_created, edited.ModifiedAt);
     }

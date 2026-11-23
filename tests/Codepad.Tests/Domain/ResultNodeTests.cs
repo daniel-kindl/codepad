@@ -70,6 +70,16 @@ public sealed class ResultNodeTests
     }
 
     [Fact]
+    public void FindExceededLimitAcceptsATreeExactlyAtEachLimit()
+    {
+        // 6 nodes (MaxNodes), 3 items in the root (MaxItems), depth 2 (MaxDepth), text of 5 characters (MaxTextLength).
+        SequenceNode inner = new SequenceNode("L", [new TextNode("12345", null), new NullNode()], null);
+        ResultNode root = new SequenceNode("L", [inner, new NullNode(), new NullNode()], null);
+
+        Assert.Null(s_small.FindExceededLimit(root));
+    }
+
+    [Fact]
     public void FindExceededLimitReportsDepth()
     {
         ResultNode root = new SequenceNode("L", [new SequenceNode("L", [new SequenceNode("L", [new NullNode()], null)], null)], null);

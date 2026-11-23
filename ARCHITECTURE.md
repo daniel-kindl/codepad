@@ -102,8 +102,9 @@ Packaging is not an adapter. [#15] builds a separate artifact for each OS.
   By default the converter does not call property getters. `ResultPolicy.FindExceededLimit` lets a
   receiver refuse a tree that ignores the limits, with no recursion.
 - **The wire format is System.Text.Json.** The `kind` property names the node kind. Enums are text.
-  Domain needs no package for this. Bad wire data throws `JsonException` or an `ArgumentException`
-  from a constructor. A receiver treats both as bad data.
+  Domain needs no package for this. `kind` must be the first property of each node. Bad wire data
+  throws `JsonException`, `NotSupportedException` (no `kind`, or `kind` after another property) or
+  an `ArgumentException` from a constructor. A receiver treats all three as bad data.
 - **Timestamps go forward.** An execution step cannot have a time before the step before it. An
   experiment edit with an earlier clock time still applies, and `ModifiedAt` stays the same.
 - **Storage rebuilds with checks.** `Experiment.Restore` rebuilds a stored experiment at its

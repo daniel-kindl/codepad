@@ -110,6 +110,16 @@ public sealed class ResultSerializationTests
         Assert.ThrowsAny<ArgumentException>(() => JsonSerializer.Deserialize<ResultNode>("""{"kind":"truncated","typeName":null,"reason":99}""", s_options));
     }
 
+    [Theory]
+    [InlineData("""{"typeName":"T","reason":"Cycle"}""")]
+    [InlineData("""{"typeName":"T","kind":"truncated","reason":"Cycle"}""")]
+    [InlineData("""{"kind":"sequence","typeName":"L","items":[{"typeName":"T","kind":"null"}],"truncation":null}""")]
+    public void DeserializeRejectsAMissingOrLateKindAsNotSupported(string json)
+    {
+        // System.Text.Json needs "kind" first in each node. A receiver must treat NotSupportedException as bad data too.
+        Assert.Throws<NotSupportedException>(() => JsonSerializer.Deserialize<ResultNode>(json, s_options));
+    }
+
     [Fact]
     public void DeserializeRejectsAnUnknownKind()
     {
