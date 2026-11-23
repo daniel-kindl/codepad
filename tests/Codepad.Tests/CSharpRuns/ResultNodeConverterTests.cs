@@ -187,6 +187,27 @@ public sealed class ResultNodeConverterTests
         Assert.Equal("1", Assert.IsType<ScalarNode>(first.Properties[1].Value).Value);
     }
 
+    [Fact]
+    public void ManyLargeDictionariesStayInsideTheNodeLimit()
+    {
+        List<Dictionary<int, int>> dictionaries = [.. Enumerable.Range(0, 100).Select(_ => Enumerable.Range(0, 1_000).ToDictionary(key => key, key => key))];
+
+        ResultNode node = Convert(dictionaries);
+
+        Assert.Null(ResultPolicy.Default.FindExceededLimit(node));
+    }
+
+    [Fact]
+    public void DictionaryWithAnObjectValueStaysInsideASmallNodeLimit()
+    {
+        ResultPolicy policy = new ResultPolicy(8, 50, 100, 20, InvokePropertyGetters: false);
+        Dictionary<string, object> dictionary = Enumerable.Range(0, 30).ToDictionary(i => "k" + i, i => (object)new { Id = i, Name = "n" + i });
+
+        ResultNode node = Convert(dictionary, policy);
+
+        Assert.Null(policy.FindExceededLimit(node));
+    }
+
     private static IEnumerable<int> FailsAfterTwo()
     {
         yield return 1;

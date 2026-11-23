@@ -164,8 +164,14 @@ internal sealed class ResultNodeConverter(ResultPolicy policy, TimeSpan? timeBud
     private static bool IsPair(Type type) =>
         type == typeof(DictionaryEntry) || type.IsGenericType && type.GetGenericTypeDefinition() == typeof(KeyValuePair<,>);
 
-    private ObjectNode ConvertPair(string typeName, object value, Type type, int depth, HashSet<object> path)
+    private ResultNode ConvertPair(string typeName, object value, Type type, int depth, HashSet<object> path)
     {
+        // The entry itself is already counted as an item. Its key and value are two more nodes, so check the room first.
+        if (policy.MaxNodes - _nodes < 2)
+        {
+            return new TruncatedNode(typeName, TruncationReason.NodeLimit);
+        }
+
         // The key and the value of a dictionary entry are plain data. Reading them runs no user code.
         object? key = type.GetProperty("Key")!.GetValue(value);
         object? entryValue = type.GetProperty("Value")!.GetValue(value);
