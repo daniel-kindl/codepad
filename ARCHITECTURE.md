@@ -8,9 +8,9 @@ For the product scope, see [PRODUCT.md](PRODUCT.md).
 
 ## Current state
 
-[#3] added storage. See [Storage and retention](#storage-and-retention). [#1] created four projects: `Codepad.Domain`, `Codepad.Application`, `Codepad.Infrastructure` and
+[#1] created four projects: `Codepad.Domain`, `Codepad.Application`, `Codepad.Infrastructure` and
 `Codepad.Desktop`. Each module has its own assembly. [#2] added the domain model. See
-[Domain model](#domain-model). [#4] creates Contracts and Worker. [#19] creates the CLI.
+[Domain model](#domain-model). [#3] added storage. See [Storage and retention](#storage-and-retention). [#4] creates Contracts and Worker. [#19] creates the CLI.
 
 The Desktop app opens one window with a menu, a workspace region and a status region. At startup
 it reads an optional settings file and prepares the data folder. A problem with either does not

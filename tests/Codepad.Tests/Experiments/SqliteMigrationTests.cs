@@ -83,6 +83,37 @@ public sealed class SqliteMigrationTests : IDisposable
         Assert.Equal("schema_too_new", error.Reason);
         Assert.Equal(999, Scalar("PRAGMA user_version;"));
         Assert.Equal(0, Scalar("SELECT COUNT(*) FROM sqlite_master;"));
+        Assert.Equal("delete", Text("PRAGMA journal_mode;"));
+    }
+
+    [Fact]
+    public async Task EightProcessesStartingTogetherOnANewFolderAllSucceed()
+    {
+        using Barrier start = new Barrier(8);
+        Task[] starts = Enumerable.Range(0, 8).Select(_ => Task.Run(() =>
+        {
+            SqliteDatabase database = new SqliteDatabase(temp.Path, SqliteMigrations.All, null);
+            start.SignalAndWait();
+            database.Migrate();
+        })).ToArray();
+
+        await Task.WhenAll(starts);
+
+        Assert.Equal(SqliteMigrations.All[^1].Version, Scalar("PRAGMA user_version;"));
+    }
+
+    [Fact]
+    public void InitializeDoesNotThrowForAnExceptionThatIsNotAStorageFailure()
+    {
+        // A broken list stands for any failure that is not a storage failure, for example a missing native library.
+        SqliteDatabase database = new SqliteDatabase(temp.Path, [new Migration(1, "SELECT 1;")], null);
+        System.Reflection.FieldInfo field = typeof(SqliteDatabase).GetField("migrations", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+        field.SetValue(database, null);
+
+        DataStoreStatus status = database.Initialize();
+
+        Assert.False(status.IsReady);
+        Assert.Equal(nameof(NullReferenceException), status.Reason);
     }
 
     [Fact]

@@ -268,4 +268,72 @@ public sealed class AutosaveSessionTests
 
         Assert.Equal(0, repository.StartedWrites);
     }
+    [Fact]
+    public async Task CancelledFlushStillSavesTheEditsAfterTheNextIdlePeriod()
+    {
+        AutosaveSession session = OpenStored();
+        Experiment edited = Typed(opened, "keep me");
+        session.Edit(edited);
+        repository.Hold();
+        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        Task flush = session.FlushAsync(cancellation.Token);
+        await cancellation.CancelAsync();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => flush);
+        Assert.Equal(SaveState.Dirty, session.State);
+
+        repository.Release();
+        time.Advance(_debounce);
+
+        Assert.Equal(edited, repository.Stored(opened.Id));
+        Assert.Equal(SaveState.Saved, session.State);
+    }
+
+    [Fact]
+    public async Task CancelledWaitForTheWriteGateStillSavesTheEditsAfterTheNextIdlePeriod()
+    {
+        AutosaveSession session = OpenStored();
+        session.Edit(Typed(opened, "first"));
+        repository.Hold();
+        Task running = session.FlushAsync(TestContext.Current.CancellationToken);
+        Experiment second = Typed(session.Current, "second");
+        session.Edit(second);
+        using CancellationTokenSource cancellation = new CancellationTokenSource();
+        Task waiting = session.FlushAsync(cancellation.Token);
+        await cancellation.CancelAsync();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => waiting);
+
+        repository.Release();
+        await running;
+
+        Assert.Equal(second, repository.Stored(opened.Id));
+    }
+
+    [Fact]
+    public async Task SubscriberThatThrowsDoesNotBreakSaving()
+    {
+        AutosaveSession session = OpenStored();
+        session.StateChanged += () => throw new InvalidOperationException("faulty subscriber");
+        Experiment edited = Typed(opened, "x");
+
+        session.Edit(edited);
+        await session.FlushAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(SaveState.Saved, session.State);
+        Assert.Equal(edited, repository.Stored(opened.Id));
+    }
+
+    [Fact]
+    public async Task EditAfterDisposeKeepsTheBufferButWritesNothing()
+    {
+        AutosaveSession session = OpenStored();
+        await session.DisposeAsync();
+        Experiment edited = Typed(opened, "late edit");
+
+        session.Edit(edited);
+        time.Advance(_debounce);
+
+        Assert.Equal(edited, session.Current);
+        Assert.Equal(SaveState.Dirty, session.State);
+        Assert.Equal(0, repository.StartedWrites);
+    }
 }

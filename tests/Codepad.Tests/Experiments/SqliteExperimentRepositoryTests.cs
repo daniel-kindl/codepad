@@ -209,6 +209,25 @@ public sealed class SqliteExperimentRepositoryTests : IDisposable
         Assert.Equal(kept, await repository.GetAsync(kept.Id, TestContext.Current.CancellationToken));
     }
 
+    [Fact]
+    public async Task OneDamagedRowDoesNotHideTheOtherExperimentsFromTheList()
+    {
+        SqliteExperimentRepository repository = NewRepository();
+        Experiment good = Sample("good");
+        await repository.SaveAsync(good, TestContext.Current.CancellationToken);
+        Guid damaged = Guid.NewGuid();
+        using (SqliteConnection raw = temp.RawConnection())
+        {
+            Execute(raw, $"INSERT INTO experiments VALUES ('{damaged}', 'Json', 't', '{{}}', '', '2026-01-02T00:00:00.0000000+00:00', '2026-01-01T00:00:00.0000000+00:00', 1);");
+        }
+
+        IReadOnlyList<Experiment> list = await repository.ListAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal([good], list);
+        ExperimentStorageException error = await Assert.ThrowsAsync<ExperimentStorageException>(() => repository.GetAsync(new ExperimentId(damaged), TestContext.Current.CancellationToken));
+        Assert.Equal("corrupt", error.Reason);
+    }
+
     private static void Execute(SqliteConnection connection, string sql)
     {
         using SqliteCommand command = connection.CreateCommand();

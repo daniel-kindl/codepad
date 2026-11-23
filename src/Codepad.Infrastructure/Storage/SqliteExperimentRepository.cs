@@ -85,7 +85,14 @@ public sealed class SqliteExperimentRepository(SqliteDatabase database) : IExper
             List<Experiment> list = [];
             while (reader.Read())
             {
-                list.Add(Read(reader));
+                try
+                {
+                    list.Add(Read(reader));
+                }
+                catch (ExperimentStorageException exception) when (exception.Reason == "corrupt")
+                {
+                    // One damaged row must not hide the other experiments. GetAsync still reports the row.
+                }
             }
 
             return list;

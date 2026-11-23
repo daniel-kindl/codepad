@@ -40,8 +40,19 @@ public sealed class SaveStatusTextTests
     [Fact]
     public void OnlyTheErrorStateOffersARetry()
     {
-        Assert.False(SaveStatusText.OffersRetry(SaveState.Saved));
-        Assert.False(SaveStatusText.OffersRetry(SaveState.Dirty));
-        Assert.True(SaveStatusText.OffersRetry(SaveState.Error));
+        Assert.False(SaveStatusText.OffersRetry(SaveState.Saved, null));
+        Assert.False(SaveStatusText.OffersRetry(SaveState.Dirty, null));
+        Assert.True(SaveStatusText.OffersRetry(SaveState.Error, "disk_full"));
+    }
+
+    [Fact]
+    public void StaleRevisionExplainsTheConflictAndOffersNoRetry()
+    {
+        string text = SaveStatusText.For(SaveState.Error, "stale_revision");
+
+        Assert.Contains("changed somewhere else", text, StringComparison.Ordinal);
+        Assert.Contains("still in the editor", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("Retry", text, StringComparison.Ordinal);
+        Assert.False(SaveStatusText.OffersRetry(SaveState.Error, "stale_revision"));
     }
 }

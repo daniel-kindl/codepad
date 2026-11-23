@@ -124,18 +124,22 @@ public sealed class AutosaveSession : IAsyncDisposable
                 throw new ArgumentException("The edit has an older revision than the buffer.", nameof(edited));
             }
 
-            if (edited.Revision == current.Revision || disposed)
+            if (edited.Revision == current.Revision)
             {
                 return;
             }
 
+            // After dispose the buffer still takes the edit, so no edit is lost silently. No write follows: the timer is gone.
             current = edited;
             state = SaveState.Dirty;
             errorReason = null;
-            timer.Change(debounce, Timeout.InfiniteTimeSpan);
+            if (!disposed)
+            {
+                timer.Change(debounce, Timeout.InfiniteTimeSpan);
+            }
         }
 
-        StateChanged?.Invoke();
+        RaiseStateChanged();
     }
 
     /// <summary>
@@ -147,7 +151,15 @@ public sealed class AutosaveSession : IAsyncDisposable
     public async Task FlushAsync(CancellationToken cancellationToken = default)
     {
         timer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-        await SaveAsync(untilClean: true, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await SaveAsync(untilClean: true, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            // A cancelled flush ends before storage holds the edits. Start the idle timer again, so the edits still reach storage.
+            RearmTimerIfDirty();
+        }
     }
 
     /// <summary>Stops the idle timer. It does not write. Call <see cref="FlushAsync"/> first when the edits must reach storage.</summary>
@@ -162,10 +174,29 @@ public sealed class AutosaveSession : IAsyncDisposable
         await timer.DisposeAsync().ConfigureAwait(false);
     }
 
+    private void RearmTimerIfDirty()
+    {
+        lock (sync)
+        {
+            if (!disposed && state == SaveState.Dirty)
+            {
+                timer.Change(debounce, Timeout.InfiniteTimeSpan);
+            }
+        }
+    }
+
     private void OnTimer(object? ignored) => _ = SaveFromTimerAsync();
 
     private async Task SaveFromTimerAsync()
     {
+        lock (sync)
+        {
+            if (disposed)
+            {
+                return;
+            }
+        }
+
         try
         {
             await SaveAsync(untilClean: false, CancellationToken.None).ConfigureAwait(false);
@@ -195,7 +226,7 @@ public sealed class AutosaveSession : IAsyncDisposable
                     state = SaveState.Saving;
                 }
 
-                StateChanged?.Invoke();
+                RaiseStateChanged();
                 if (!await TryWriteAsync(snapshot, cancellationToken).ConfigureAwait(false) || !untilClean)
                 {
                     return;
@@ -248,7 +279,7 @@ public sealed class AutosaveSession : IAsyncDisposable
             errorReason = null;
         }
 
-        StateChanged?.Invoke();
+        RaiseStateChanged();
         return true;
     }
 
@@ -260,6 +291,27 @@ public sealed class AutosaveSession : IAsyncDisposable
             errorReason = reason;
         }
 
-        StateChanged?.Invoke();
+        RaiseStateChanged();
+    }
+
+    // The state is final before the event. A faulty subscriber must not stop a save or leave the state wrong, so its exception stops here.
+    private void RaiseStateChanged()
+    {
+        lock (sync)
+        {
+            if (disposed)
+            {
+                return;
+            }
+        }
+
+        try
+        {
+            StateChanged?.Invoke();
+        }
+        catch (Exception)
+        {
+            // Not rethrown on purpose. See the comment above.
+        }
     }
 }

@@ -47,6 +47,11 @@ public sealed class SqliteDatabase : IDataStoreInitializer
         {
             return DataStoreStatus.Unavailable(exception.Reason);
         }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            // For example a missing native SQLite library. Startup must go on. The type is the reason: the message can hold a path.
+            return DataStoreStatus.Unavailable(exception.GetType().Name);
+        }
     }
 
     /// <summary>Creates the file if needed and applies each migration that the file has not seen. Each step is one transaction.</summary>
@@ -59,16 +64,16 @@ public sealed class SqliteDatabase : IDataStoreInitializer
         try
         {
             using SqliteConnection connection = Open(applyConfigure: false);
-            Execute(connection, "PRAGMA journal_mode = WAL;");
 
-            long version = Scalar(connection, "PRAGMA user_version;");
+            // Check the version before any change, so a database that is too new stays exactly as it is.
             int latest = migrations.Count == 0 ? 0 : migrations[^1].Version;
-            if (version > latest)
+            if (Scalar(connection, "PRAGMA user_version;") > latest)
             {
                 throw new ExperimentStorageException("schema_too_new");
             }
 
-            foreach (Migration step in migrations.Where(step => step.Version > version))
+            Execute(connection, "PRAGMA journal_mode = WAL;");
+            foreach (Migration step in migrations)
             {
                 Apply(connection, step);
             }
@@ -85,24 +90,40 @@ public sealed class SqliteDatabase : IDataStoreInitializer
 
     private static void Apply(SqliteConnection connection, Migration step)
     {
-        using SqliteTransaction transaction = connection.BeginTransaction();
+        // IMMEDIATE takes the write lock first. A second CodePad process that starts at the same time waits here,
+        // then sees the new version and skips the step. A deferred transaction would let both read the old version.
+        Execute(connection, "BEGIN IMMEDIATE;");
         try
         {
-            using SqliteCommand command = connection.CreateCommand();
-            command.Transaction = transaction;
-            command.CommandText = step.Sql;
-            command.ExecuteNonQuery();
-            command.CommandText = $"PRAGMA user_version = {step.Version};";
-            command.ExecuteNonQuery();
-            transaction.Commit();
+            if (Scalar(connection, "PRAGMA user_version;") >= step.Version)
+            {
+                Execute(connection, "ROLLBACK;");
+                return;
+            }
+
+            Execute(connection, step.Sql);
+            Execute(connection, $"PRAGMA user_version = {step.Version};");
+            Execute(connection, "COMMIT;");
         }
         catch (SqliteException exception)
         {
-            transaction.Rollback();
+            RollbackQuietly(connection);
             ExperimentStorageException failure = SqliteFailure.From(exception);
             throw failure.Reason.StartsWith("sqlite_error_", StringComparison.Ordinal)
                 ? new ExperimentStorageException("migration_failed", exception)
                 : failure;
+        }
+    }
+
+    private static void RollbackQuietly(SqliteConnection connection)
+    {
+        try
+        {
+            Execute(connection, "ROLLBACK;");
+        }
+        catch (SqliteException)
+        {
+            // SQLite has already ended the transaction for some errors. The original failure is the one to report.
         }
     }
 
