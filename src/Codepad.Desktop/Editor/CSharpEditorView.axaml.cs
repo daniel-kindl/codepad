@@ -21,6 +21,7 @@ public sealed partial class CSharpEditorView : UserControl
 
     private SyntaxColorizer? colorizer;
     private CSharpEditorViewModel? model;
+    private bool replacingDocument;
 
     /// <summary>Initializes a new instance of the <see cref="CSharpEditorView"/> class.</summary>
     public CSharpEditorView()
@@ -85,7 +86,16 @@ public sealed partial class CSharpEditorView : UserControl
 
     private void OnDocumentLoaded(string text)
     {
-        Editor.Document = new TextDocument(text);
+        replacingDocument = true;
+        try
+        {
+            Editor.Document = new TextDocument(text);
+        }
+        finally
+        {
+            replacingDocument = false;
+        }
+
         colorizer?.Invalidate();
         Editor.TextArea.TextView.Redraw();
     }
@@ -93,7 +103,10 @@ public sealed partial class CSharpEditorView : UserControl
     private void OnEditorTextChanged(object? sender, EventArgs e)
     {
         colorizer?.Invalidate();
-        model?.OnTextEdited(Editor.Text);
+        if (!replacingDocument)
+        {
+            model?.OnTextEdited(Editor.Text);
+        }
     }
 
     private void OnDiagnosticsChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) => Editor.TextArea.TextView.Redraw();
@@ -134,11 +147,13 @@ public sealed partial class CSharpEditorView : UserControl
         else if (e.Key == Key.F8 && model is not null && model.Diagnostics.Count > 0)
         {
             int caret = Editor.CaretOffset;
-            DiagnosticItem next = model.Diagnostics.FirstOrDefault(item => item.Source.Start > caret) ?? model.Diagnostics[0];
+            // The list shows errors first, so F8 uses source order.
+            List<DiagnosticItem> ordered = [.. model.Diagnostics.OrderBy(item => item.Source.Start)];
+            DiagnosticItem next = ordered.FirstOrDefault(item => item.Source.Start > caret) ?? ordered[0];
             GoTo(next);
             e.Handled = true;
         }
-        else if (e.KeyModifiers == KeyModifiers.Control && e.Key is Key.OemPlus or Key.Add)
+        else if (e.KeyModifiers.HasFlag(KeyModifiers.Control) && e.Key is Key.OemPlus or Key.Add)
         {
             Zoom(1);
             e.Handled = true;

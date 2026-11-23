@@ -75,6 +75,7 @@ public sealed class DiagnosticsCoordinator : IDisposable
         ArgumentNullException.ThrowIfNull(source);
         CancellationTokenSource next = new CancellationTokenSource();
         long mine;
+        CancellationToken token;
         lock (sync)
         {
             if (disposed)
@@ -87,9 +88,10 @@ public sealed class DiagnosticsCoordinator : IDisposable
             running?.Dispose();
             running = next;
             mine = ++version;
+            token = next.Token;
         }
 
-        _ = RunAsync(mine, source, next.Token);
+        _ = RunAsync(mine, source, token);
     }
 
     /// <summary>Stops the analysis. No event follows.</summary>

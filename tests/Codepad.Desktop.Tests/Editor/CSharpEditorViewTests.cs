@@ -82,6 +82,26 @@ public sealed class CSharpEditorViewTests
     }
 
     [AvaloniaFact]
+    public async Task F8ReachesAWarningThatComesBeforeAnError()
+    {
+        (MainWindow window, CSharpEditorView view) = Show("light");
+        CSharpEditorViewModel model = (CSharpEditorViewModel)view.DataContext!;
+        model.Load("int a = 1;\na = a;\nint b = ;");
+        await WaitAsync(() => view.List.ItemCount == 2);
+        view.TextEditor.TextArea.Focus();
+        view.TextEditor.CaretOffset = 0;
+
+        window.KeyPressQwerty(PhysicalKey.F8, RawInputModifiers.None);
+        window.KeyReleaseQwerty(PhysicalKey.F8, RawInputModifiers.None);
+        Assert.Equal(2, view.TextEditor.TextArea.Caret.Line);
+
+        window.KeyPressQwerty(PhysicalKey.F8, RawInputModifiers.None);
+        window.KeyReleaseQwerty(PhysicalKey.F8, RawInputModifiers.None);
+        Assert.Equal(3, view.TextEditor.TextArea.Caret.Line);
+        window.Close();
+    }
+
+    [AvaloniaFact]
     public async Task UndoAndRedoRestoreTheTextAndTheDiagnostics()
     {
         (MainWindow window, CSharpEditorView view) = Show("light");
