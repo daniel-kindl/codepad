@@ -59,6 +59,40 @@ public sealed class ResultNodeTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => new TruncatedNode("T", (TruncationReason)99));
         Assert.Throws<ArgumentOutOfRangeException>(() => new SequenceNode("T", [], (TruncationReason)99));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ObjectNode("T", [], (TruncationReason)99));
+    }
+
+    [Theory]
+    [InlineData(0, 1)]
+    [InlineData(1, 0)]
+    [InlineData(-1, 1)]
+    public void SourceLocationRejectsALineOrColumnBelowOne(int line, int column)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new SourceLocation(line, column));
+    }
+
+    [Fact]
+    public void SourceLocationAcceptsLineAndColumnOne()
+    {
+        SourceLocation location = new SourceLocation(1, 1);
+
+        Assert.Equal(1, location.Line);
+        Assert.Equal(1, location.Column);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public void DiagnosticRejectsAnEmptyOrBlankMessage(string? message)
+    {
+        Assert.Throws<ArgumentException>(() => new Diagnostic(DiagnosticSeverity.Error, "CS0001", message!, null));
+    }
+
+    [Fact]
+    public void DiagnosticRejectsAnUndefinedSeverity()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new Diagnostic((DiagnosticSeverity)9, "CS0001", "Message.", null));
     }
 
     [Fact]
@@ -123,6 +157,28 @@ public sealed class ResultNodeTests
         Assert.Equal(TruncationReason.TextLimit, s_small.FindExceededLimit(new TextNode("123456", null)));
         Assert.Equal(TruncationReason.TextLimit, s_small.FindExceededLimit(new ScalarNode("System.Int64", "123456")));
         Assert.Equal(TruncationReason.TextLimit, s_small.FindExceededLimit(new UnsupportedNode("System.IntPtr", "123456")));
+    }
+
+    [Fact]
+    public void FindExceededLimitAcceptsEachValueTextExactlyAtTheLimit()
+    {
+        Assert.Null(s_small.FindExceededLimit(new TextNode("12345", null)));
+        Assert.Null(s_small.FindExceededLimit(new ScalarNode("System.Int64", "12345")));
+        Assert.Null(s_small.FindExceededLimit(new UnsupportedNode("System.IntPtr", "12345")));
+        Assert.Null(s_small.FindExceededLimit(new UnsupportedNode("System.IntPtr", null)));
+    }
+
+    [Fact]
+    public void FindExceededLimitRejectsANullRoot()
+    {
+        Assert.Throws<ArgumentNullException>(() => ResultPolicy.Default.FindExceededLimit(null!));
+    }
+
+    [Fact]
+    public void NullChildListErrorNamesTheParameter()
+    {
+        Assert.Equal("properties", Assert.Throws<ArgumentNullException>(() => new ObjectNode("T", null!, null)).ParamName);
+        Assert.Equal("items", Assert.Throws<ArgumentNullException>(() => new SequenceNode("T", null!, null)).ParamName);
     }
 
     [Fact]

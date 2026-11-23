@@ -55,8 +55,10 @@ Tests check the dependency direction. See [#1] and [#2].
 ### Dependency rules
 
 - Domain is independent. It has no IO and no UI types. It references only the .NET base class
-  library, and it reads no clock: the caller supplies each timestamp. `ModuleDependencyTests`
-  checks the assembly references and the IO, ADO.NET and OS type references.
+  library. The caller supplies each timestamp. The only clock use is in `ExperimentId.New()` and
+  `ExecutionId.New()`: a version 7 GUID holds the current time, so new IDs sort by creation time.
+  `ModuleDependencyTests` checks the assembly references, the IO, ADO.NET and OS type references,
+  and the clock members (`Now`, `UtcNow`, `Today`).
 - Application owns the use cases. It declares an interface for each IO need.
 - Infrastructure implements those interfaces.
 - Desktop creates the objects and connects them. It holds no business rules.

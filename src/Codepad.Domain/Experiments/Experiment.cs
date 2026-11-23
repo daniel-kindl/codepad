@@ -12,7 +12,7 @@ namespace Codepad.Domain.Experiments;
 /// Storage uses the revision to refuse an older write after a newer one.
 /// </para>
 /// <para>
-/// The caller supplies each timestamp, so the domain reads no clock.
+/// The caller supplies each timestamp. The domain reads no clock for a timestamp.
 /// <see cref="Id"/>, <see cref="Kind"/> and <see cref="CreatedAt"/> never change.
 /// </para>
 /// </remarks>

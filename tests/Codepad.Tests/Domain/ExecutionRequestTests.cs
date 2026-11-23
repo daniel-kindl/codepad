@@ -97,6 +97,14 @@ public sealed class ExecutionRequestTests
     }
 
     [Fact]
+    public void RerunRejectsANullId()
+    {
+        ExecutionRequest first = ExecutionRequest.Snapshot(s_firstRun, NewExperiment(), OperationPolicy.CSharpDefault, s_created);
+
+        Assert.Throws<ArgumentNullException>(() => first.Rerun(null!, s_created));
+    }
+
+    [Fact]
     public void ExecutionIdRejectsTheEmptyGuid()
     {
         Assert.Throws<ArgumentException>(() => new ExecutionId(Guid.Empty));

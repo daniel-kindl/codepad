@@ -76,6 +76,30 @@ public sealed class ModuleDependencyTests
         Assert.DoesNotContain(types, name => name.StartsWith(forbiddenPrefix, StringComparison.Ordinal));
     }
 
+    public static TheoryData<string> ForbiddenDomainClockMembers => new()
+    {
+        "System.DateTime.get_Now",
+        "System.DateTime.get_UtcNow",
+        "System.DateTime.get_Today",
+        "System.DateTimeOffset.get_Now",
+        "System.DateTimeOffset.get_UtcNow",
+    };
+
+    [Theory]
+    [MemberData(nameof(ForbiddenDomainClockMembers))]
+    public void DomainReadsNoClockForTimestamps(string forbiddenMember)
+    {
+        // The caller supplies each timestamp. Guid.CreateVersion7 in the ID New() methods is the one allowed clock use.
+        Assert.DoesNotContain(forbiddenMember, DomainMemberReferences());
+    }
+
+    [Fact]
+    public void DomainMemberReferenceScanSeesTheGuidFactory()
+    {
+        // Proves that the member scan reads real references, so the clock checks are not empty passes.
+        Assert.Contains("System.Guid.CreateVersion7", DomainMemberReferences());
+    }
+
     [Fact]
     public void DomainTypeReferenceScanSeesTheSerializationAttributes()
     {
@@ -93,5 +117,25 @@ public sealed class ModuleDependencyTests
             .Select(handle => metadata.GetTypeReference(handle))
             .Select(reference => metadata.GetString(reference.Namespace) + "." + metadata.GetString(reference.Name))
             .ToList();
+    }
+
+    private static List<string> DomainMemberReferences()
+    {
+        using FileStream stream = File.OpenRead(Assembly.Load("Codepad.Domain").Location);
+        using PEReader reader = new PEReader(stream);
+        MetadataReader metadata = reader.GetMetadataReader();
+        List<string> members = [];
+
+        foreach (MemberReferenceHandle handle in metadata.MemberReferences)
+        {
+            MemberReference member = metadata.GetMemberReference(handle);
+            if (member.Parent.Kind == HandleKind.TypeReference)
+            {
+                TypeReference parent = metadata.GetTypeReference((TypeReferenceHandle)member.Parent);
+                members.Add(metadata.GetString(parent.Namespace) + "." + metadata.GetString(parent.Name) + "." + metadata.GetString(member.Name));
+            }
+        }
+
+        return members;
     }
 }
