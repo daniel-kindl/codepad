@@ -4,6 +4,7 @@
     <Project Path="src/Codepad.Contracts/Codepad.Contracts.csproj" />
     <Project Path="src/Codepad.Application/Codepad.Application.csproj" />
     <Project Path="src/Codepad.Infrastructure/Codepad.Infrastructure.csproj" />
+    <Project Path="src/Codepad.Language/Codepad.Language.csproj" />
     <Project Path="src/Codepad.Desktop/Codepad.Desktop.csproj" />
     <Project Path="src/Codepad.Worker/Codepad.Worker.csproj" />
   </Folder>

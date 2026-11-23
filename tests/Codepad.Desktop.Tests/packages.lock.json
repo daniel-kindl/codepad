@@ -189,15 +189,6 @@
           "Microsoft.CodeAnalysis.Analyzers": "5.9.0"
         }
       },
-      "Microsoft.CodeAnalysis.CSharp": {
-        "type": "Transitive",
-        "resolved": "5.12.0",
-        "contentHash": "6W6vBcpQFjlxog+KUGNM2fFy+XA2StC1PtnkEkechk68vFy3a28tGjEdnoA7NrxhMdr8a+zh/AmiUtBAmdkQPg==",
-        "dependencies": {
-          "Microsoft.CodeAnalysis.Analyzers": "5.9.0",
-          "Microsoft.CodeAnalysis.Common": "[5.12.0]"
-        }
-      },
       "Microsoft.CodeAnalysis.Scripting.Common": {
         "type": "Transitive",
         "resolved": "5.12.0",
@@ -458,11 +449,13 @@
         "type": "Project",
         "dependencies": {
           "Avalonia": "[12.1.6, )",
+          "Avalonia.AvaloniaEdit": "[12.0.0, )",
           "Avalonia.Desktop": "[12.1.6, )",
           "Avalonia.Fonts.Inter": "[12.1.6, )",
           "Avalonia.Themes.Fluent": "[12.1.6, )",
           "Codepad.Application": "[0.1.0, )",
           "Codepad.Infrastructure": "[0.1.0, )",
+          "Codepad.Language": "[0.1.0, )",
           "Codepad.Worker": "[0.1.0, )",
           "Microsoft.Extensions.Logging": "[11.0.0, )",
           "Microsoft.Extensions.Logging.Console": "[11.0.0, )"
@@ -476,6 +469,14 @@
         "dependencies": {
           "Codepad.Application": "[0.1.0, )",
           "Microsoft.Data.Sqlite": "[11.0.0, )"
+        }
+      },
+      "codepad.language": {
+        "type": "Project",
+        "dependencies": {
+          "Codepad.Application": "[0.1.0, )",
+          "Codepad.Domain": "[0.1.0, )",
+          "Microsoft.CodeAnalysis.CSharp": "[5.12.0, )"
         }
       },
       "codepad.worker": {
@@ -494,6 +495,15 @@
           "Avalonia.BuildServices": "11.3.2",
           "Avalonia.Remote.Protocol": "12.1.6",
           "MicroCom.Runtime": "0.11.6"
+        }
+      },
+      "Avalonia.AvaloniaEdit": {
+        "type": "CentralTransitive",
+        "requested": "[12.0.0, )",
+        "resolved": "12.0.0",
+        "contentHash": "VNfaYdTbiQ2DlSkSMoLg4DhTbQmQR0cFT6nqEqLkaYGLjBWmUdv5BNIuoObK4c9cgzFqnEJXBaOp4R/bxgFKfQ==",
+        "dependencies": {
+          "Avalonia": "12.0.0"
         }
       },
       "Avalonia.Desktop": {
@@ -526,6 +536,16 @@
         "contentHash": "CafSFU8q6I2ij7VRWy3D5qw3ObrDEOXRqIvFqVuEh7vqk1EC9ob94KYRmbHLZRsyj3Ob2xsF/tgcF5YF2uiKzQ==",
         "dependencies": {
           "Avalonia": "12.1.6"
+        }
+      },
+      "Microsoft.CodeAnalysis.CSharp": {
+        "type": "CentralTransitive",
+        "requested": "[5.12.0, )",
+        "resolved": "5.12.0",
+        "contentHash": "6W6vBcpQFjlxog+KUGNM2fFy+XA2StC1PtnkEkechk68vFy3a28tGjEdnoA7NrxhMdr8a+zh/AmiUtBAmdkQPg==",
+        "dependencies": {
+          "Microsoft.CodeAnalysis.Analyzers": "5.9.0",
+          "Microsoft.CodeAnalysis.Common": "[5.12.0]"
         }
       },
       "Microsoft.CodeAnalysis.CSharp.Scripting": {

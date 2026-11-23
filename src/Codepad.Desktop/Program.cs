@@ -1,10 +1,13 @@
 using System.Diagnostics;
 using System.Reflection;
 using Avalonia;
+using Codepad.Application.Editing;
 using Codepad.Application.Startup;
+using Codepad.Desktop.Editor;
 using Codepad.Desktop.Shell;
 using Codepad.Infrastructure.Startup;
 using Codepad.Infrastructure.Storage;
+using Codepad.Language;
 using Microsoft.Extensions.Logging;
 
 namespace Codepad.Desktop;
@@ -38,7 +41,7 @@ internal static partial class Program
 
         string version = typeof(Program).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "unknown";
         ShellOptions options = new ShellOptions(
-            new MainWindowViewModel(report.Notices),
+            new MainWindowViewModel(report.Notices, new CSharpEditorViewModel(new CSharpHighlighter(), new CSharpAnalyzer(), TimeProvider.System, DiagnosticsCoordinator.DefaultDebounce, reportFailure: reason => LogAnalysisFailed(logger, reason))),
             () =>
             {
                 long startupMs = (long)Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds;
@@ -79,4 +82,8 @@ internal static partial class Program
     [LoggerMessage(EventId = 3, EventName = "shell.crashed", Level = LogLevel.Critical,
         Message = "Shell stopped on an unhandled exception: {ExceptionType}")]
     private static partial void LogShellCrashed(ILogger logger, string exceptionType);
+
+    [LoggerMessage(EventId = 4, EventName = "editor.analysis_failed", Level = LogLevel.Warning,
+        Message = "The C# analysis failed: {ExceptionType}")]
+    private static partial void LogAnalysisFailed(ILogger logger, string exceptionType);
 }

@@ -1,5 +1,6 @@
 <Styles xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ae="using:AvaloniaEdit">
 
   <!-- Styles of the shell regions. The colors come from Tokens.axaml. -->
 
@@ -45,6 +46,41 @@
     <Setter Property="FontSize" Value="{StaticResource ShellBodyFontSize}" />
     <Setter Property="TextAlignment" Value="Center" />
     <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+
+  <!-- The C# editor and its diagnostics list. -->
+
+  <Style Selector="ae|TextEditor.code-editor">
+    <Setter Property="Background" Value="{DynamicResource ShellWorkspaceBackgroundBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+    <Setter Property="LineNumbersForeground" Value="{DynamicResource ShellMutedTextBrush}" />
+    <Setter Property="Padding" Value="4" />
+  </Style>
+
+  <Style Selector="ListBox.diagnostic-list">
+    <Setter Property="Background" Value="{DynamicResource ShellWorkspaceBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ShellBorderBrush}" />
+    <Setter Property="BorderThickness" Value="0,1,0,0" />
+  </Style>
+
+  <Style Selector="TextBlock.diagnostic-severity">
+    <Setter Property="Foreground" Value="{DynamicResource EditorInfoBrush}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="MinWidth" Value="56" />
+  </Style>
+  <Style Selector="TextBlock.diagnostic-severity.error">
+    <Setter Property="Foreground" Value="{DynamicResource EditorErrorBrush}" />
+  </Style>
+  <Style Selector="TextBlock.diagnostic-severity.warning">
+    <Setter Property="Foreground" Value="{DynamicResource EditorWarningBrush}" />
+  </Style>
+
+  <Style Selector="TextBlock.diagnostic-place">
+    <Setter Property="Foreground" Value="{DynamicResource ShellMutedTextBrush}" />
+  </Style>
+
+  <Style Selector="TextBlock.diagnostic-message">
+    <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
   </Style>
 
 </Styles>

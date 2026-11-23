@@ -23,6 +23,7 @@ scripts and tools quickly, offline. Run C# snippets on demand and check JSON as 
 | `src/Codepad.Domain` | The domain model: experiments, execution requests, outcomes, diagnostics, `ResultNode` and policies. |
 | `src/Codepad.Application` | Use cases and the interfaces for their IO needs. |
 | `src/Codepad.Infrastructure` | IO adapters, including the OS-specific folder locator. |
+| `src/Codepad.Language` | The Roslyn language service of the editor: syntax coloring and diagnostics. |
 | `src/Codepad.Desktop` | The Avalonia app and the composition root. |
 | `tests/Codepad.Tests` | Unit tests and the module dependency tests. |
 | `tests/Codepad.Desktop.Tests` | View model tests and headless Avalonia UI tests. |
@@ -97,8 +98,13 @@ CodePad keeps experiments and settings in one SQLite file, `codepad.db`, in the 
 account and no cloud service is needed. If the file cannot be opened, for example because it comes
 from a newer CodePad, the app starts and shows a message in the status bar. CodePad never deletes
 or changes a database that it cannot open. The storage layer keeps the last committed edit after a
-stop without a normal shutdown, and never runs restored source. The editor (#5) will use it to
-restore your work. The editor does not exist yet.
+stop without a normal shutdown, and never runs restored source.
+
+The window has a C# editor. It colors the syntax and lists compiler errors and warnings as you
+type, and it never runs your code. Press F8 to go to the next problem. Press Enter on a problem in
+the list to select it in the editor. Press Escape to leave the editor for the list. Ctrl with plus,
+minus or the mouse wheel changes the font size. The editor text is not saved yet. Saving and tabs
+come with a later change.
 
 The app writes JSON log events to standard output. The events do not hold source, input, results
 or file paths. Each JSON line has the numeric `EventId`. The output does not hold the event name.
@@ -110,6 +116,7 @@ and in this table.
 | 1 | `startup.degraded` | Warning | Startup used a fallback. Fields: `NoticeKind`, `Reason`. |
 | 2 | `shell.opened` | Information | The main window opened. Fields: `Version`, `StartupMs`. |
 | 3 | `shell.crashed` | Critical | An unhandled exception stopped the app. Field: `ExceptionType`. |
+| 4 | `editor.analysis_failed` | Warning | The C# analysis threw an exception. Field: `ExceptionType`. |
 
 ## Contribute
 

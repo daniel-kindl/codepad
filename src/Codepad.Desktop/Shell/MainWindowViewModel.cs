@@ -1,10 +1,13 @@
 using Codepad.Application.Startup;
+using Codepad.Desktop.Editor;
+using Codepad.Language;
 
 namespace Codepad.Desktop.Shell;
 
 /// <summary>The presentation state of the main window.</summary>
 /// <param name="notices">The problems that startup recovered from.</param>
-public sealed class MainWindowViewModel(IReadOnlyList<StartupNotice> notices)
+/// <param name="editor">The C# editor. Null creates the editor with the Roslyn language service.</param>
+public sealed class MainWindowViewModel(IReadOnlyList<StartupNotice> notices, CSharpEditorViewModel? editor = null)
 {
     /// <summary>The status text when the settings file is not usable.</summary>
     internal const string SETTINGS_UNUSABLE_TEXT = "Your settings file couldn't be read, so CodePad is using the default settings.";
@@ -16,6 +19,9 @@ public sealed class MainWindowViewModel(IReadOnlyList<StartupNotice> notices)
     internal const string DATA_STORE_UNAVAILABLE_TEXT = "CodePad can't open its experiment database, so your work won't be saved.";
 
     private const string READY_TEXT = "Ready";
+
+    /// <summary>Gets the C# editor.</summary>
+    public CSharpEditorViewModel Editor { get; } = editor ?? new CSharpEditorViewModel(new CSharpHighlighter(), new CSharpAnalyzer(), TimeProvider.System, Codepad.Application.Editing.DiagnosticsCoordinator.DefaultDebounce);
 
     /// <summary>Gets the window title.</summary>
     public string Title { get; } = "CodePad";

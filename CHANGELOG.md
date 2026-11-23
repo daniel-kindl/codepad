@@ -15,6 +15,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The
 
 ### Added
 
+- C# editor (#5): the workspace shows an AvaloniaEdit editor with syntax colors for light and dark
+  themes, compiler diagnostics and a diagnostics list. The new module `Codepad.Language` gives
+  Roslyn syntax coloring and syntax and semantic diagnostics. The analysis runs in the background
+  on an immutable text version, waits 250 ms for a pause, cancels on a new edit, and drops stale
+  results. A tab or document switch never shows the diagnostics of another document. Enter on a
+  diagnostic selects its range. F8 goes to the next one. Escape leaves the editor. Ctrl with
+  plus, minus or the mouse wheel zooms. The editor does not run code, and its text is not saved yet.
 - C# compilation and isolated execution (#4): the new modules `Codepad.Contracts` and `Codepad.Worker`,
   the `ICSharpRunner` port and `WorkerSupervisor`. Each explicit run compiles the snapshot with Roslyn
   scripting and runs it in a new worker process. The report has the value, stdout, stderr, compiler

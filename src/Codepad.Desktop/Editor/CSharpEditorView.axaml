@@ -1,0 +1,51 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ae="using:AvaloniaEdit"
+             xmlns:editor="using:Codepad.Desktop.Editor"
+             x:Class="Codepad.Desktop.Editor.CSharpEditorView"
+             x:DataType="editor:CSharpEditorViewModel">
+
+  <Grid RowDefinitions="*,Auto,Auto">
+
+    <ae:TextEditor x:Name="Editor"
+                   Grid.Row="0"
+                   Classes="code-editor"
+                   FontFamily="{StaticResource EditorFontFamily}"
+                   FontSize="{StaticResource EditorFontSize}"
+                   ShowLineNumbers="True"
+                   WordWrap="False"
+                   HorizontalScrollBarVisibility="Auto"
+                   VerticalScrollBarVisibility="Auto"
+                   AutomationProperties.Name="C# editor" />
+
+    <Border Grid.Row="1" Classes="status-region">
+      <TextBlock Classes="status"
+                 Text="{Binding SummaryText}"
+                 AutomationProperties.Name="Diagnostics summary"
+                 AutomationProperties.LiveSetting="Polite" />
+    </Border>
+
+    <ListBox x:Name="DiagnosticList"
+             Grid.Row="2"
+             Classes="diagnostic-list"
+             Focusable="True"
+             ItemsSource="{Binding Diagnostics}"
+             MaxHeight="160"
+             AutomationProperties.Name="Diagnostics">
+      <ListBox.ItemTemplate>
+        <DataTemplate x:DataType="editor:DiagnosticItem">
+          <StackPanel Orientation="Horizontal" Spacing="8" AutomationProperties.Name="{Binding AccessibleName}">
+            <TextBlock Classes="diagnostic-severity"
+                       Classes.error="{Binding IsError}"
+                       Classes.warning="{Binding IsWarning}"
+                       Text="{Binding SeverityText}" />
+            <TextBlock Classes="diagnostic-place" Text="{Binding PlaceText}" />
+            <TextBlock Classes="diagnostic-message" Text="{Binding Source.Message}" TextTrimming="CharacterEllipsis" />
+          </StackPanel>
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+
+  </Grid>
+
+</UserControl>

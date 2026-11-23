@@ -57,12 +57,18 @@ public sealed class MainWindowTests
         MenuItem file = Assert.IsType<MenuItem>(FindByName(window, "File"));
         MenuItem exit = Assert.IsType<MenuItem>(FindByName(window, "Exit"));
 
-        // The File menu is the only tab stop. Tab moves focus to it and shows the focus.
+        // Tab moves focus to the File menu and shows the focus.
         Press(window, PhysicalKey.Tab);
         Assert.Same(file, window.FocusManager?.GetFocusedElement());
         Assert.Contains(":focus-visible", file.Classes);
 
-        // A second Tab keeps focus in the window, on the only tab stop.
+        // A second Tab moves to the editor. Tab inside the editor inserts a tab, so Escape leaves it for the diagnostics list.
+        Press(window, PhysicalKey.Tab);
+        Assert.IsType<AvaloniaEdit.Editing.TextArea>(window.FocusManager?.GetFocusedElement());
+        Press(window, PhysicalKey.Escape);
+        Assert.Same(FindByName(window, "Diagnostics"), window.FocusManager?.GetFocusedElement());
+
+        // A Tab from the list wraps around to the File menu. Focus never gets trapped.
         Press(window, PhysicalKey.Tab);
         Assert.Same(file, window.FocusManager?.GetFocusedElement());
 

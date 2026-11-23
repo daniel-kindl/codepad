@@ -12,10 +12,11 @@ For the product scope, see [PRODUCT.md](PRODUCT.md).
 `Codepad.Desktop`. Each module has its own assembly. [#2] added the domain model. See
 [Domain model](#domain-model). [#3] added storage. See
 [Storage and retention](#storage-and-retention). [#4] added Contracts and Worker. See
-[C# script semantics](#c-script-semantics) and [Worker protocol](#worker-protocol). [#19] creates
+[C# script semantics](#c-script-semantics) and [Worker protocol](#worker-protocol). [#5] added the C# editor. See [C# editor](#c-editor). [#19] creates
 the CLI.
 
-The Desktop app opens one window with a menu, a workspace region and a status region. At startup
+The Desktop app opens one window with a menu, a workspace region and a status region. The workspace
+holds the C# editor with its diagnostics list. No experiment is open yet, so the editor text is not saved. At startup
 it reads an optional settings file and prepares the data folder. A problem with either does not
 stop the startup. The status region shows it.
 
@@ -27,8 +28,9 @@ assembly where that has a reason.
 | Module | Holds | Must not depend on |
 | --- | --- | --- |
 | Domain | Experiment, execution request, outcomes, diagnostics, `ResultNode`, policies. See [#2]. | Avalonia, Roslyn, SQLite, OS APIs |
-| Application | Use cases and the interfaces that they need, for example `ICSharpRunner` and `IUpdateService`. | Avalonia, SQLite, Roslyn, OS APIs |
+| Application | Use cases and the interfaces that they need, for example `ICSharpRunner`, `ICSharpAnalyzer` and `IUpdateService`. | Avalonia, SQLite, Roslyn, OS APIs |
 | Infrastructure | Adapters for IO: SQLite storage, the worker supervisor (`WorkerSupervisor`), the GitHub Releases client, the update verifier. | Desktop, Roslyn |
+| Language | The Roslyn language service of the editor: syntax coloring and diagnostics. See [#5]. | Desktop, Infrastructure, Worker, Avalonia, SQLite |
 | Contracts | The versioned messages between the app and the worker, and the frame codec. See [#4]. | Desktop, Infrastructure, Application, Worker, Roslyn, SQLite, Avalonia |
 | Worker | The child process that compiles and runs one C# snippet with Roslyn. See [#4]. | Desktop, Infrastructure, Application, SQLite, Avalonia |
 | Desktop | The Avalonia UI and the composition root. | (the composition root can use all modules) |
@@ -46,9 +48,11 @@ app. The app starts the worker as a child process. It never loads the worker ass
 flowchart TD
     Desktop --> Application
     Desktop --> Infrastructure
+    Desktop --> Language
     Desktop -. copies .-> Worker
     CLI --> Application
     CLI --> Infrastructure
+    Language --> Application
     Infrastructure --> Application
     Infrastructure --> Contracts
     Application --> Domain
@@ -244,6 +248,34 @@ output. A later issue can add streaming.
 The supervisor logs the end of each run at Information (execution ID, outcome, duration). A worker
 failure without a response is a Warning. The supervisor never logs source, output or values.
 
+## C# editor
+
+[#5] added the editor. The decisions:
+
+- **Component.** The editor is AvaloniaEdit (`Avalonia.AvaloniaEdit`, MIT). It has selection, undo and
+  redo, indentation, line numbers, IME and text input through the Avalonia text stack, and
+  automation names. CodePad adds the colors, the underlines, the zoom (Ctrl with plus, minus or the
+  mouse wheel) and the diagnostics list. Linux and Windows use the same component.
+- **Language service.** `Codepad.Language` holds `CSharpHighlighter` and `CSharpAnalyzer`. Application
+  declares `ICSharpHighlighter` and `ICSharpAnalyzer`, so Desktop depends on interfaces for the logic.
+  The highlighter reads the syntax tree only and runs on the UI thread on each text change, with a
+  limit of 200,000 characters. The analyzer compiles the text as a script in memory, with the same
+  language version, imports and framework references as the worker. It never emits or runs code.
+- **Stale results.** `DiagnosticsCoordinator` (Application) numbers each text version. It waits 250 ms
+  for a pause, then analyzes the newest text on a thread-pool thread. A newer edit cancels the running
+  analysis. The coordinator never raises a result for an old version. The view model checks the
+  version again on the UI thread. An edit empties the diagnostics list at once, because its ranges
+  describe the old text. Loading another document disposes the coordinator and creates a new one, so
+  a late analysis cannot show in another document.
+- **Autosave.** The view model raises `ContentChanged` for each user edit. It does not use SQLite. A
+  later change connects it to `AutosaveSession` ([#10]).
+- **Keyboard.** Tab inserts a tab in the editor. Escape moves focus to the diagnostics list, and Tab
+  from the list continues to the menu, so focus is never trapped. F8 goes to the next diagnostic.
+  Enter or a double click on a diagnostic selects its range in the editor.
+- **Colors.** The tokens are in `Themes/Tokens.axaml`, with measured contrast for light and dark.
+  A diagnostic shows its severity as a word and as the color of its underline, never as color alone.
+- **Logging.** A failed analysis logs `editor.analysis_failed` (Warning) with the exception type only.
+
 ## Worker trust boundary
 
 The worker process is a **crash boundary**. It is **not a security sandbox**.
@@ -325,7 +357,7 @@ implementation. Record a durable decision as an ADR in `docs/adr/` when it passe
 | V-03 | Which C# script form: Roslyn scripting or top-level statements? How does the last expression become the result? Resolved in [#4]: Roslyn scripting. The value of the last expression is the result. See [C# script semantics](#c-script-semantics). | [#4] |
 | V-04 | Which IPC transport and framing: standard streams or local pipes, length-prefixed or line-delimited JSON? Resolved in [#4]: standard streams with length-prefixed JSON. See [Worker protocol](#worker-protocol). | [#4] |
 | V-05 | Which process tree stop works on each OS? Which resource limits are not available on one OS? Partly resolved in [#4]: `Process.Kill(entireProcessTree: true)` stops the tree on Linux and Windows, and the tests check it on both. The worker has no memory or CPU limit on either OS. [#14] decides the rest. | [#4], [#14] |
-| V-06 | Which Avalonia editor component? Check it for selection, undo, IME, zoom and accessibility. | [#5] |
+| V-06 | Which Avalonia editor component? Check it for selection, undo, IME, zoom and accessibility. | [#5]. Resolved: AvaloniaEdit. Check IME and Windows font rendering on a real Windows machine. |
 | V-07 | Which XDG fallback folders on Linux? Resolved in [#3]: `$XDG_DATA_HOME/codepad` and `$XDG_CONFIG_HOME/codepad`, with `~/.local/share` and `~/.config` when the variable is not set. | [#3] |
 | V-08 | Is a plain bounded SQLite query fast enough for search, or is FTS needed? Measure first. | [#11] |
 | V-09 | Which module holds the live JSON provider? Does it run in the desktop process on a background thread? | [#9] |
