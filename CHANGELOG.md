@@ -8,6 +8,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The
 
 ## [Unreleased]
 
+### Fixed
+
+- A C# source that is larger than the worker protocol limit now gives a `WorkerFailed` report with the code
+  `WorkerRequestTooLarge`. Before, the runner threw `FrameException`.
+
 ### Added
 
 - C# compilation and isolated execution (#4): the new modules `Codepad.Contracts` and `Codepad.Worker`,

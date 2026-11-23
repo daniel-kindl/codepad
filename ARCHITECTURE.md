@@ -233,6 +233,7 @@ Each end of a run has one outcome. The diagnostic code gives the reason:
 | `TimedOut` | `TimeLimitExceeded` | The policy time limit passed. |
 | `WorkerFailed` | `WorkerCrashed` | The worker ended with a non-zero exit code and no response. |
 | `WorkerFailed` | `WorkerExitedEarly` | The worker ended with exit code 0 and no response. |
+| `WorkerFailed` | `WorkerRequestTooLarge` | The request is larger than the protocol limit. The worker does not get it. |
 | `WorkerFailed` | `WorkerMalformedMessage` | The reply is cut, too large, not JSON, or breaks a rule of the protocol. |
 | `WorkerFailed` | `WorkerProtocolMismatch` | The reply has another protocol version. |
 | `WorkerFailed` | `WorkerStartFailed` | The operating system did not start the process. |

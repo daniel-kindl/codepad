@@ -222,6 +222,16 @@ public sealed class WorkerSupervisorTests : IDisposable
     }
 
     [Fact]
+    public async Task SourceLargerThanTheProtocolLimitIsWorkerRequestTooLarge()
+    {
+        string source = "//" + new string('a', 5 * 1024 * 1024);
+
+        RunReport report = await _harness.RunAsync(source);
+
+        AssertWorkerFailed(report, "WorkerRequestTooLarge");
+    }
+
+    [Fact]
     public async Task TextOnTheProtocolStreamIsWorkerMalformedMessage()
     {
         // "dotnet --version" prints text and exits. It is a worker that does not speak the protocol.
