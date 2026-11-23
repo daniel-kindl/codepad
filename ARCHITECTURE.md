@@ -12,7 +12,7 @@ For the product scope, see [PRODUCT.md](PRODUCT.md).
 `Codepad.Desktop`. Each module has its own assembly. [#2] added the domain model. See
 [Domain model](#domain-model). [#3] added storage. See
 [Storage and retention](#storage-and-retention). [#4] added Contracts and Worker. See
-[C# script semantics](#c-script-semantics) and [Worker protocol](#worker-protocol). [#5] added the C# editor and [#6] added completion. See [C# editor](#c-editor). [#19] creates
+[C# script semantics](#c-script-semantics) and [Worker protocol](#worker-protocol). [#5] added the C# editor, [#6] added completion and [#7] added the result panel. See [C# editor](#c-editor). [#19] creates
 the CLI.
 
 The Desktop app opens one window with a menu, a workspace region and a status region. The workspace
@@ -291,6 +291,31 @@ failure without a response is a Warning. The supervisor never logs source, outpu
   Each row shows the kind as a word, and has an accessible name with the name, kind and detail.
 - **Logging.** A failed analysis logs `editor.analysis_failed` and a failed completion request logs
   `editor.completion_failed`, both Warning with the exception type only.
+
+## Result rendering
+
+[#7] added the result panel and finished the worker conversion.
+
+- **Worker conversion.** With property getters off (the default), the converter reads public fields and the
+  stored value of auto-properties, records, anonymous types and tuples. This runs no user code. A property
+  with a computed getter is not shown. An object with no such member becomes an `UnsupportedNode` with its
+  type and a safe `ToString`. A dictionary entry becomes an object with `Key` and `Value`. A getter that
+  throws, when the policy allows getters, becomes an `UnsupportedNode`. An exception while the converter
+  walks a sequence keeps the items read so far and sets `TruncationReason.Error`. A slow or endless sequence
+  stops at the time budget of 2 seconds with `TruncationReason.TimeLimit`. The budget is checked between two
+  items. One call that never returns is stopped by the time limit of the run.
+- **Choice of view.** `ResultsViewModel` picks the view from the root node. A null, a number or a string shows
+  as selectable text. A sequence of objects with the same property names in the same order shows as a table.
+  Everything else shows as a tree. A scalar list, a mixed list and an empty list show as a tree.
+- **Bounds in the UI.** The tree creates the children of a row when the tree shows the row, so it holds one level of child rows for each visible row. The table uses a
+  virtualizing `DataGrid`. The tree and the table hold at most what `ResultPolicy.Default` allows: 50,000
+  nodes. A cut value says why in plain words, for example "Only the first items are shown".
+- **Status.** The header shows the outcome as a phrase and as a color, and the execution ID and finish time.
+  A run that does not succeed keeps the value of the last successful run on screen and says so in a banner.
+  Problems, standard output and standard error are separate tabs. A cut output says how much it shows.
+- **Copy.** The Copy button puts the bounded value on the clipboard as indented JSON.
+- **Not connected yet.** No Run command exists yet, so the panel shows "No run yet". A later issue connects
+  `ResultsViewModel.Show` to a run ([#8]).
 
 ## Worker trust boundary
 

@@ -1,5 +1,6 @@
 using Codepad.Application.Startup;
 using Codepad.Desktop.Editor;
+using Codepad.Desktop.Results;
 using Codepad.Language;
 
 namespace Codepad.Desktop.Shell;
@@ -22,6 +23,9 @@ public sealed class MainWindowViewModel(IReadOnlyList<StartupNotice> notices, CS
 
     /// <summary>Gets the C# editor.</summary>
     public CSharpEditorViewModel Editor { get; } = editor ?? new CSharpEditorViewModel(new CSharpHighlighter(), new CSharpAnalyzer(), TimeProvider.System, Codepad.Application.Editing.DiagnosticsCoordinator.DefaultDebounce, completion: new CSharpCompletionProvider());
+
+    /// <summary>Gets the result panel.</summary>
+    public ResultsViewModel Results { get; } = new ResultsViewModel();
 
     /// <summary>Gets the window title.</summary>
     public string Title { get; } = "CodePad";

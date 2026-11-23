@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
 using Codepad.Domain.Operations;
@@ -10,11 +11,22 @@ namespace Codepad.Worker;
 /// Converts a .NET value to a bounded <see cref="ResultNode"/> tree. The tree always respects the
 /// <see cref="ResultPolicy"/>: <see cref="ResultPolicy.FindExceededLimit"/> finds no limit that it breaks.
 /// A value that is too deep, too wide or too long becomes a marked cut. A cycle becomes a <see cref="TruncatedNode"/>.
-/// The converter calls property getters only when the policy allows it.
+/// The converter calls property getters only when the policy allows it. With getters off it reads public fields and
+/// the stored value of auto-properties, which run no user code.
 /// </summary>
+/// <remarks>
+/// The time budget stops a slow or endless sequence between two items. One call that never returns cannot be
+/// interrupted here. The supervisor time limit of the whole run stops it.
+/// </remarks>
 /// <param name="policy">The limits.</param>
-internal sealed class ResultNodeConverter(ResultPolicy policy)
+/// <param name="timeBudget">The time for the whole conversion. Null uses <see cref="DefaultTimeBudget"/>.</param>
+internal sealed class ResultNodeConverter(ResultPolicy policy, TimeSpan? timeBudget = null)
 {
+    /// <summary>The default time for one conversion.</summary>
+    public static readonly TimeSpan DefaultTimeBudget = TimeSpan.FromSeconds(2);
+
+    private readonly TimeSpan _budget = timeBudget ?? DefaultTimeBudget;
+    private readonly Stopwatch _clock = new Stopwatch();
     private int _nodes;
 
     /// <summary>Converts one value. One converter object converts one value.</summary>
@@ -23,6 +35,7 @@ internal sealed class ResultNodeConverter(ResultPolicy policy)
     public ResultNode Convert(object? value)
     {
         _nodes = 1;
+        _clock.Restart();
         return ConvertNode(value, 0, new HashSet<object>(ReferenceEqualityComparer.Instance));
     }
 
@@ -58,6 +71,11 @@ internal sealed class ResultNodeConverter(ResultPolicy policy)
             return new TruncatedNode(typeName, TruncationReason.Cycle);
         }
 
+        if (IsPair(type))
+        {
+            return ConvertPair(typeName, value, type, depth, path);
+        }
+
         if (value is IEnumerable enumerable)
         {
             path.Add(value);
@@ -71,15 +89,12 @@ internal sealed class ResultNodeConverter(ResultPolicy policy)
             }
         }
 
-        if (!policy.InvokePropertyGetters)
-        {
-            return new UnsupportedNode(typeName, SafeToString(value));
-        }
-
         path.Add(value);
         try
         {
-            return ConvertObject(typeName, value, type, depth, path);
+            return policy.InvokePropertyGetters
+                ? ConvertObject(typeName, value, type, depth, path)
+                : ConvertData(typeName, value, type, depth, path);
         }
         finally
         {
@@ -94,22 +109,46 @@ internal sealed class ResultNodeConverter(ResultPolicy policy)
         List<object?> items = [];
         TruncationReason? truncation = null;
 
-        IEnumerator enumerator = source.GetEnumerator();
+        IEnumerator? enumerator = null;
         try
         {
-            while (items.Count < take && enumerator.MoveNext())
+            enumerator = source.GetEnumerator();
+            while (items.Count < take)
             {
+                if (_clock.Elapsed > _budget)
+                {
+                    truncation = TruncationReason.TimeLimit;
+                    break;
+                }
+
+                if (!enumerator.MoveNext())
+                {
+                    break;
+                }
+
                 items.Add(enumerator.Current);
             }
 
-            if (items.Count == take && enumerator.MoveNext())
+            if (truncation is null && items.Count == take && enumerator.MoveNext())
             {
                 truncation = take == policy.MaxItems ? TruncationReason.ItemLimit : TruncationReason.NodeLimit;
             }
         }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            // The sequence threw while the converter read it. Keep what it gave before.
+            truncation = TruncationReason.Error;
+        }
         finally
         {
-            (enumerator as IDisposable)?.Dispose();
+            try
+            {
+                (enumerator as IDisposable)?.Dispose();
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                // A failing Dispose of the user sequence does not change what the converter already read.
+            }
         }
 
         _nodes += items.Count;
@@ -120,6 +159,78 @@ internal sealed class ResultNodeConverter(ResultPolicy policy)
         }
 
         return new SequenceNode(typeName, nodes, truncation);
+    }
+
+    private static bool IsPair(Type type) =>
+        type == typeof(DictionaryEntry) || type.IsGenericType && type.GetGenericTypeDefinition() == typeof(KeyValuePair<,>);
+
+    private ResultNode ConvertPair(string typeName, object value, Type type, int depth, HashSet<object> path)
+    {
+        // The entry itself is already counted as an item. Its key and value are two more nodes, so check the room first.
+        if (policy.MaxNodes - _nodes < 2)
+        {
+            return new TruncatedNode(typeName, TruncationReason.NodeLimit);
+        }
+
+        // The key and the value of a dictionary entry are plain data. Reading them runs no user code.
+        object? key = type.GetProperty("Key")!.GetValue(value);
+        object? entryValue = type.GetProperty("Value")!.GetValue(value);
+        _nodes += 2;
+        return new ObjectNode(typeName, [new ResultProperty("Key", ConvertNode(key, depth + 1, path)), new ResultProperty("Value", ConvertNode(entryValue, depth + 1, path))], null);
+    }
+
+    private ResultNode ConvertData(string typeName, object value, Type type, int depth, HashSet<object> path)
+    {
+        List<(string Name, Func<object, object?> Read)> members = [];
+        HashSet<string> names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (PropertyInfo property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        {
+            FieldInfo? stored = property.GetIndexParameters().Length == 0 && property.GetMethod is not null ? FindStoredField(property) : null;
+            if (stored is not null && names.Add(property.Name))
+            {
+                members.Add((property.Name, stored.GetValue));
+            }
+        }
+
+        foreach (FieldInfo field in type.GetFields(BindingFlags.Public | BindingFlags.Instance))
+        {
+            if (names.Add(field.Name))
+            {
+                members.Add((field.Name, field.GetValue));
+            }
+        }
+
+        if (members.Count == 0)
+        {
+            return new UnsupportedNode(typeName, SafeToString(value));
+        }
+
+        int room = Math.Max(0, policy.MaxNodes - _nodes);
+        int take = Math.Min(policy.MaxItems, room);
+        TruncationReason? truncation = null;
+        if (members.Count > take)
+        {
+            truncation = take == policy.MaxItems ? TruncationReason.ItemLimit : TruncationReason.NodeLimit;
+            members = members.Take(take).ToList();
+        }
+
+        _nodes += members.Count;
+        List<ResultProperty> result = [];
+        foreach ((string name, Func<object, object?> read) in members)
+        {
+            result.Add(new ResultProperty(name, ConvertNode(read(value), depth + 1, path)));
+        }
+
+        return new ObjectNode(typeName, result, truncation);
+    }
+
+    private static FieldInfo? FindStoredField(PropertyInfo property)
+    {
+        // A compiler-made auto-property, a record property or an anonymous-type property keeps its value in a hidden field.
+        // A property with a computed getter has no such field, so it is not shown.
+        const BindingFlags FLAGS = BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly;
+        Type? owner = property.DeclaringType;
+        return owner?.GetField($"<{property.Name}>k__BackingField", FLAGS) ?? owner?.GetField($"<{property.Name}>i__Field", FLAGS);
     }
 
     private ObjectNode ConvertObject(string typeName, object value, Type type, int depth, HashSet<object> path)
