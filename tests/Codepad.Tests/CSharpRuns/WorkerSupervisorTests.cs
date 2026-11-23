@@ -155,7 +155,7 @@ public sealed class WorkerSupervisorTests : IDisposable
         RunReport report = await run;
         clock.Stop();
 
-        Assert.Equal(ExecutionOutcome.TimedOut, report.Result.Outcome);
+        Assert.True(report.Result.Outcome == ExecutionOutcome.TimedOut, $"Outcome {report.Result.Outcome}: {string.Join(" | ", report.Result.Diagnostics.Select(diagnostic => diagnostic.Code + " " + diagnostic.Message))}");
         Assert.True(clock.Elapsed < TimeSpan.FromSeconds(30), $"The run took {clock.Elapsed}.");
         Assert.True(File.Exists(childFile), "The script did not start its child process, so the test proves nothing.");
         int childId = int.Parse(await File.ReadAllTextAsync(childFile, TestContext.Current.CancellationToken), System.Globalization.CultureInfo.InvariantCulture);
