@@ -72,7 +72,13 @@ public sealed class SqliteDatabase : IDataStoreInitializer
                 throw new ExperimentStorageException("schema_too_new");
             }
 
-            Execute(connection, "PRAGMA journal_mode = WAL;");
+
+            // WAL is stored in the file. Switch only the first time: later starts, also two at once, skip the switch.
+            if (!string.Equals(Text(connection, "PRAGMA journal_mode;"), "wal", StringComparison.OrdinalIgnoreCase))
+            {
+                Execute(connection, "PRAGMA journal_mode = WAL;");
+            }
+
             foreach (Migration step in migrations)
             {
                 Apply(connection, step);
@@ -159,6 +165,13 @@ public sealed class SqliteDatabase : IDataStoreInitializer
         using SqliteCommand command = connection.CreateCommand();
         command.CommandText = sql;
         command.ExecuteNonQuery();
+    }
+
+    private static string Text(SqliteConnection connection, string sql)
+    {
+        using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = sql;
+        return Convert.ToString(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
     }
 
     private static long Scalar(SqliteConnection connection, string sql)

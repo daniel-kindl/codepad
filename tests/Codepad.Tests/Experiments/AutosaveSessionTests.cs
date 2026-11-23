@@ -336,4 +336,18 @@ public sealed class AutosaveSessionTests
         Assert.Equal(SaveState.Dirty, session.State);
         Assert.Equal(0, repository.StartedWrites);
     }
+    [Fact]
+    public async Task FlushAfterDisposeStillWritesTheBuffer()
+    {
+        // The system timer throws on a change after dispose. The manual test timer does not.
+        repository.Seed(opened);
+        AutosaveSession session = AutosaveSession.Open(repository, opened, TimeProvider.System, TimeSpan.FromHours(1));
+        Experiment edited = Typed(opened, "late");
+        session.Edit(edited);
+        await session.DisposeAsync();
+
+        await session.FlushAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(edited, repository.Stored(opened.Id));
+    }
 }

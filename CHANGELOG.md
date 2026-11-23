@@ -21,7 +21,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The
 - `AutosaveSession`: waits 500 ms after the last edit, then writes the newest revision once. Writes
   never overlap. `FlushAsync` saves at once, for a tab switch and for shutdown. The save state is
   clean, dirty, saving, saved or error. The state is never saved before the commit. A failure keeps
-  the edited text and shows an action that the user can take, with a Retry.
+  the edited text and gives a reason that the UI can turn into an action with a Retry. These are
+  building blocks: the editor (#5) connects them to the window.
 - A startup notice when the experiment database cannot be used.
 - Crash-recovery tests: the last committed version comes back after a stop in the middle of a
   transaction.

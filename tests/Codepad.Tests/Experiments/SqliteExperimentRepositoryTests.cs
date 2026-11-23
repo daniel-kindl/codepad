@@ -224,6 +224,12 @@ public sealed class SqliteExperimentRepositoryTests : IDisposable
         IReadOnlyList<Experiment> list = await repository.ListAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal([good], list);
+        using (SqliteConnection raw = temp.RawConnection())
+        {
+            Execute(raw, $"INSERT INTO experiments VALUES ('{Guid.NewGuid()}', '99', 't', '{{}}', '', '2026-01-01T00:00:00.0000000+00:00', '2026-01-01T00:00:00.0000000+00:00', 1);");
+        }
+
+        Assert.Equal([good], await repository.ListAsync(TestContext.Current.CancellationToken));
         ExperimentStorageException error = await Assert.ThrowsAsync<ExperimentStorageException>(() => repository.GetAsync(new ExperimentId(damaged), TestContext.Current.CancellationToken));
         Assert.Equal("corrupt", error.Reason);
     }
