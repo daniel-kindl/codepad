@@ -34,6 +34,15 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void UnusableDatabaseShowsThatWorkIsNotSaved()
+    {
+        MainWindowViewModel viewModel = new MainWindowViewModel([new StartupNotice(StartupNoticeKind.DataStoreUnavailable, "schema_too_new")]);
+
+        Assert.Equal(MainWindowViewModel.DATA_STORE_UNAVAILABLE_TEXT, viewModel.StatusText);
+        Assert.True(viewModel.HasWarning);
+    }
+
+    [Fact]
     public void TwoProblemsShowBothMessagesInOrder()
     {
         MainWindowViewModel viewModel = new MainWindowViewModel(

@@ -10,6 +10,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The
 
 ### Added
 
+- Experiment persistence (#3): one SQLite database (`codepad.db`) in the per-user data folder, with
+  write-ahead logging, full synchronization and a versioned schema (`PRAGMA user_version`). Each
+  migration step is one transaction. The app refuses a schema that is newer than itself and does not
+  change it. The schema has tables for experiments and settings, and reserved tables for run
+  history (#8) and the tab session (#10).
+- `IExperimentRepository` and `SqliteExperimentRepository`: create, read, update and list. A write
+  succeeds only when its revision is higher than the stored revision, so an older write never
+  replaces newer source.
+- `AutosaveSession`: waits 500 ms after the last edit, then writes the newest revision once. Writes
+  never overlap. `FlushAsync` saves at once, for a tab switch and for shutdown. The save state is
+  clean, dirty, saving, saved or error. The state is never saved before the commit. A failure keeps
+  the edited text and shows an action that the user can take, with a Retry.
+- A startup notice when the experiment database cannot be used.
+- Crash-recovery tests: the last committed version comes back after a stop in the middle of a
+  transaction.
 - Domain model (#2): `Experiment` with revisions and `Restore`, immutable `ExecutionRequest` snapshots and
   reruns, the `Execution` lifecycle with six outcomes, operation and result policies, diagnostics,
   and the bounded `ResultNode` tree with truncation reasons. Results and diagnostics serialize

@@ -8,6 +8,9 @@ public enum StartupNoticeKind
 
     /// <summary>CodePad cannot create or write to its data folder.</summary>
     DataFolderUnavailable,
+
+    /// <summary>CodePad cannot open its experiment database. The schema can be newer than the app, or the file can be damaged.</summary>
+    DataStoreUnavailable,
 }
 
 /// <summary>One startup problem, with a log-safe reason code.</summary>
@@ -23,7 +26,8 @@ public sealed record StartupReport(AppSettings Settings, IReadOnlyList<StartupNo
 /// <summary>Prepares the settings and the data folder before the UI starts.</summary>
 /// <param name="settingsStore">Reads the settings file.</param>
 /// <param name="dataFolder">The per-user data folder.</param>
-public sealed class StartupService(ISettingsStore settingsStore, IDataFolder dataFolder)
+/// <param name="dataStore">The experiment database. Startup opens it only when the data folder is ready.</param>
+public sealed class StartupService(ISettingsStore settingsStore, IDataFolder dataFolder, IDataStoreInitializer dataStore)
 {
     /// <summary>
     /// Reads the settings and prepares the data folder. A problem does not stop the startup.
@@ -49,6 +53,14 @@ public sealed class StartupService(ISettingsStore settingsStore, IDataFolder dat
         if (!folder.IsReady)
         {
             notices.Add(new StartupNotice(StartupNoticeKind.DataFolderUnavailable, folder.Reason ?? "unknown"));
+        }
+        else
+        {
+            DataStoreStatus store = dataStore.Initialize();
+            if (!store.IsReady)
+            {
+                notices.Add(new StartupNotice(StartupNoticeKind.DataStoreUnavailable, store.Reason ?? "unknown"));
+            }
         }
 
         return new StartupReport(settings, notices);

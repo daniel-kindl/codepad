@@ -12,6 +12,9 @@ public sealed class MainWindowViewModel(IReadOnlyList<StartupNotice> notices)
     /// <summary>The status text when the data folder is not usable.</summary>
     internal const string DATA_FOLDER_UNAVAILABLE_TEXT = "CodePad can't write to its data folder, so your work won't be saved.";
 
+    /// <summary>The status text when the experiment database is not usable.</summary>
+    internal const string DATA_STORE_UNAVAILABLE_TEXT = "CodePad can't open its experiment database, so your work won't be saved.";
+
     private const string READY_TEXT = "Ready";
 
     /// <summary>Gets the window title.</summary>
@@ -24,6 +27,7 @@ public sealed class MainWindowViewModel(IReadOnlyList<StartupNotice> notices)
         {
             StartupNoticeKind.SettingsUnusable => SETTINGS_UNUSABLE_TEXT,
             StartupNoticeKind.DataFolderUnavailable => DATA_FOLDER_UNAVAILABLE_TEXT,
+            StartupNoticeKind.DataStoreUnavailable => DATA_STORE_UNAVAILABLE_TEXT,
             _ => throw new ArgumentOutOfRangeException(nameof(notices), notice.Kind, "No status text for this notice kind."),
         }));
 

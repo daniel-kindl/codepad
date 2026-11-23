@@ -4,6 +4,7 @@ using Avalonia;
 using Codepad.Application.Startup;
 using Codepad.Desktop.Shell;
 using Codepad.Infrastructure.Startup;
+using Codepad.Infrastructure.Storage;
 using Microsoft.Extensions.Logging;
 
 namespace Codepad.Desktop;
@@ -14,13 +15,16 @@ internal static partial class Program
     /// <summary>Opens the window, then closes the app with exit code 0. CI uses it as the launch smoke test.</summary>
     internal const string SMOKE_TEST_ARGUMENT = "--smoke-test";
 
+    /// <summary>The name of the experiment database in the data folder.</summary>
+    private const string DATABASE_FILE_NAME = "codepad.db";
+
     [STAThread]
     public static int Main(string[] args)
     {
         long startedAt = Stopwatch.GetTimestamp();
 
         AppFolderPaths folders = AppFolderLocator.Locate();
-        StartupReport report = new StartupService(JsonSettingsStore.InFolder(folders.ConfigFolder), new FileSystemDataFolder(folders.DataFolder)).Prepare();
+        StartupReport report = new StartupService(JsonSettingsStore.InFolder(folders.ConfigFolder), new FileSystemDataFolder(folders.DataFolder), new SqliteDatabase(Path.Combine(folders.DataFolder, DATABASE_FILE_NAME))).Prepare();
 
         using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder
             .SetMinimumLevel(report.Settings.MinimumLogLevel)
