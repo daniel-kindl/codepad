@@ -13,23 +13,23 @@ design. [#1] creates them. Update this section when the projects exist.
 
 ## Modules
 
-[#1] defines these modules. It can combine modules into one assembly where that has a reason.
+[#1] defines these modules. [#19] adds the CLI module. [#1] can combine modules into one
+assembly where that has a reason.
 
 | Module | Holds | Must not depend on |
 | --- | --- | --- |
 | Domain | Experiment, execution request, outcomes, diagnostics, `ResultNode`, policies. See [#2]. | Avalonia, Roslyn, SQLite, OS APIs |
 | Application | Use cases and the interfaces that they need, for example `IUpdateService`. | Avalonia, SQLite, OS APIs |
 | Infrastructure | Adapters for IO: SQLite storage, the worker supervisor, the GitHub Releases client, the update verifier. | Desktop |
-| Contracts | The versioned messages between the app and the worker. See [#4]. | Desktop, Infrastructure |
-| Worker | The child process that compiles and runs one C# snippet with Roslyn. See [#4]. | Desktop, Infrastructure, Application |
+| Contracts | The versioned messages between the app and the worker. See [#4]. | Proposed: Desktop, Infrastructure. See V-13. |
+| Worker | The child process that compiles and runs one C# snippet with Roslyn. See [#4]. | Proposed: Desktop, Infrastructure, Application. See V-13. |
 | Desktop | The Avalonia UI and the composition root. | (the composition root can use all modules) |
 | CLI | The `codepad` command for agents and scripts. A second composition root. See [#19]. | Desktop |
 
 The diagram shows which module uses which module. Domain uses no other module. Desktop and CLI
-are composition roots. They share the same use cases. The worker shares only the contracts with
-the app.
+are composition roots. They share the same use cases.
 
-The arrows to and from Contracts and Worker are **proposed**. No issue states them. [#1], [#2] and
+The rows and the arrows for Contracts and Worker are **proposed**. No issue states them. [#1], [#2] and
 [#4] decide them. See V-13 in [Open validation questions](#open-validation-questions).
 
 ```mermaid
@@ -71,11 +71,12 @@ and a Windows implementation:
 - Worker start, process tree stop and pipes. See [#4] and [#14].
 - Key handling. See [#13].
 - Update install, restart and rollback (`IUpdateInstaller`). See [#17].
-- Packaging. See [#15].
+
+Packaging is not an adapter. [#15] builds a separate artifact for each OS.
 
 ## Operations
 
-CodePad has two modes. Both use the same experiment, diagnostic and `ResultNode` contracts. See
+CodePad has two operation kinds. Both use the same experiment, diagnostic and `ResultNode` contracts. See
 [#2] and [#9].
 
 | | C# run | Live JSON |
@@ -85,7 +86,9 @@ CodePad has two modes. Both use the same experiment, diagnostic and `ResultNode`
 | Input | An immutable snapshot of the source | The current document revision |
 | History | One immutable record for each run | No history record for each key press |
 | Limits | Time limit, output limits, result limits | Document size and nesting limits |
-| Old results | Each run has its own record | A result for an old revision is dropped |
+| Old results | Each run has its own record | The app drops a result for an old revision |
+
+No issue names the module that holds the live JSON provider. See V-09.
 
 ### C# run flow
 
@@ -139,17 +142,19 @@ The worker process is a **crash boundary**. It is **not a security sandbox**.
 | Let the app stop runaway code with its process tree | Give the same resource limits on Linux and Windows |
 
 User code runs with the permissions of the user who runs CodePad. CodePad runs only code that its
-caller trusts. In the desktop app, the caller is the user. In the CLI, the caller is the user or
-agent that starts the command. The CLI uses the same worker and the same limits. See [#19]. For this reason, no path runs C# code automatically: edit, autosave, history
+caller trusts. For this reason, no path runs C# code automatically: edit, autosave, history
 selection, session restore, a newly opened experiment, import and startup do not start a run. See
 [#4] and [#14].
+
+In the desktop app, the caller is the user. In the CLI, the caller is the user or agent that starts
+the command. The CLI uses the same worker and the same limits. See [#19].
 
 The release documentation states this limit. See [#15].
 
 ## Storage and retention
 
 - One SQLite database in the per-user data folder. See [#3].
-- The schema has a version. Migrations are controlled.
+- The schema has a version. Only controlled migrations change the schema.
 - Each write is a transaction. The UI shows dirty, saving, saved and error states. The app does not
   say "saved" before the commit is durable.
 - Each experiment has a revision number. An older write cannot replace a newer revision.
@@ -197,13 +202,14 @@ implementation. Record a durable decision as an ADR in `docs/adr/` when it passe
 | V-06 | Which Avalonia editor component? Check it for selection, undo, IME, zoom and accessibility. | [#5] |
 | V-07 | Which XDG fallback folders on Linux? | [#3] |
 | V-08 | Is a plain bounded SQLite query fast enough for search, or is FTS needed? Measure first. | [#11] |
-| V-09 | Does live JSON evaluation run in the desktop process on a background thread? | [#9] |
+| V-09 | Which module holds the live JSON provider? Does it run in the desktop process on a background thread? | [#9] |
 | V-10 | Which Linux artifact format: an archive or a distribution package? | [#15] |
 | V-11 | Which signature scheme for the update manifest, and how does the owner keep the key? | [#15], [#17] |
 | V-12 | How does the update helper replace the app and roll back on each OS? | [#17] |
 | V-13 | Do Contracts use Domain to carry `ResultNode`? Does Worker use only Contracts? | [#1], [#2], [#4] |
 | V-14 | How do the CLI and a running desktop app share one SQLite database safely? | [#3], [#19] |
 | V-15 | Is the CLI a separate executable or a mode of the desktop executable? How does it get on the PATH? | [#15], [#17], [#19] |
+| V-16 | Which command names and argument shapes does the CLI use? | [#19] |
 
 [#1]: https://github.com/daniel-kindl/codepad/issues/1
 [#2]: https://github.com/daniel-kindl/codepad/issues/2

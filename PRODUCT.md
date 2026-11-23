@@ -14,7 +14,7 @@ tools quickly. "Safe" means that an experiment cannot crash the app or lose your
 do not set anything up. It does not mean protection from harmful code. See
 [Product requirements](#product-requirements).
 
-CodePad has two kinds of operation:
+CodePad has two operation kinds:
 
 - **Explicit C# runs.** You write a C# snippet. The snippet runs only when you start a run.
 - **Live tools.** You type input, and CodePad evaluates it as you type. The JSON tool is the only
@@ -139,8 +139,9 @@ The updater follows these rules. [#17] holds the full contract.
 ### Platform rules
 
 - Shared domain, application and UI code is the same on both OSs.
-- OS-specific behavior is behind small adapters: data folders, worker process control,
-  packaging, update install and key handling. See [ARCHITECTURE.md](ARCHITECTURE.md#platform-adapters).
+- OS-specific behavior is behind small adapters: data folders, worker process control, update
+  install and key handling. See [ARCHITECTURE.md](ARCHITECTURE.md#platform-adapters).
+- Each OS has its own release artifact. See [#15].
 - On Linux, data goes in the XDG data and config folders. On Windows, data goes in
   `LocalApplicationData`. See [#3].
 
@@ -157,8 +158,8 @@ The owner issues list these exclusions. Do not add them to v0.1.
   See [#8].
 - **JSON:** JSONPath, schemas, YAML, remote API calls, pipelines, plugins. See [#9].
 - **Workbench:** projects and folders, tags, semantic search, file system indexing, split panes,
-  detached windows, an OS-wide shortcut, an external launcher, a plugin registry, a shortcut
-  editor. See [#10], [#11], [#12] and [#13].
+  detached windows, an OS-wide shortcut, an external launcher, a plugin registry, a complex
+  shortcut editor. See [#10], [#11], [#12] and [#13].
 - **Accounts:** cloud sync, cloud storage, accounts, telemetry, automatic backups. See [#3],
   [#13] and [#14].
 - **Updates:** automatic install, restart without permission, differential patches, a prerelease
@@ -237,9 +238,9 @@ before the v0.1 release.
 | AC-12 | Tabs | C# and JSON tabs keep their own state. Closing a tab keeps the experiment. Open tabs come back after a restart. | [#10] |
 | AC-13 | Library search | A search finds experiments by title, source and type. Opening an open experiment focuses its tab. A search over thousands of experiments does not block the UI. | [#11] |
 | AC-14 | Keyboard and visual | Ctrl+K opens the palette. You can complete the core journey with no mouse. Focus comes back after Esc. Focus states, scaling, a narrow window and empty, loading and error states pass visual review. | [#12], [#13], [#15] |
-| AC-15 | Settings | Settings survive a restart. Invalid values are rejected. A new time limit applies only to new runs. Clearing history keeps experiments. | [#13] |
+| AC-15 | Settings | Settings survive a restart. CodePad rejects invalid values. A new time limit applies only to new runs. Clearing history keeps experiments. | [#13] |
 | AC-16 | Offline | All of AC-01 to AC-15 pass with the network disconnected. A failed update check does not block CodePad. | [#15], [#17] |
-| AC-17 | Update | Install one version from a clean state, then update to the next version. The update installs only after you agree. A bad signature or digest is rejected. A failed update rolls back. Data stays after the update and after a rollback. | [#15], [#17] |
+| AC-17 | Update | Install one version from a clean state, then update to the next version. The update installs only after you agree. CodePad rejects a bad signature or digest. A failed update rolls back. Data stays after the update and after a rollback. | [#15], [#17] |
 | AC-18 | Release package | Linux and Windows artifacts have checksums and a signed manifest. All CI gates pass. The docs state the trusted-code warning and known limits. | [#15] |
 | AC-19 | Agent CLI | An agent runs C# and JSON from a shell and parses the versioned JSON output. CLI changes show in the desktop library and history. A CLI write while the desktop app is open loses no data. | [#19] |
 
