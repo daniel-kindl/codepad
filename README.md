@@ -62,6 +62,12 @@ unshare -rn xvfb-run -a dotnet src/Codepad.Desktop/bin/Release/net11.0/Codepad.D
 dotnet src/Codepad.Desktop/bin/Release/net11.0/Codepad.Desktop.dll --smoke-test
 ```
 
+`unshare -rn` needs unprivileged user namespaces. Ubuntu 23.10 and later restrict them with
+AppArmor, so the command fails there by default. Without `unshare -rn`, the command runs with the
+network available. CI allows user namespaces on its disposable runner with
+`sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0`. Do not change this setting on
+your own computer only to run the smoke test.
+
 ### Screenshots
 
 `dotnet test` saves screenshots of the shell in the light and dark themes, at the minimum and at a
