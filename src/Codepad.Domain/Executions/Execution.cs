@@ -68,9 +68,10 @@ public sealed class Execution
     }
 
     /// <summary>Records that the operation started.</summary>
-    /// <param name="startedAt">The start time.</param>
+    /// <param name="startedAt">The start time. It cannot be before the request time.</param>
     /// <returns>A running execution.</returns>
     /// <exception cref="InvalidOperationException">The execution is not pending.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="startedAt"/> is before the request time.</exception>
     public Execution Start(DateTimeOffset startedAt)
     {
         if (Status != ExecutionStatus.Pending)
@@ -78,14 +79,17 @@ public sealed class Execution
             throw new InvalidOperationException($"Execution {Id} cannot start: its status is {Status}, not Pending.");
         }
 
+        ArgumentOutOfRangeException.ThrowIfLessThan(startedAt, Request.RequestedAt);
+
         return new Execution(Request, ExecutionStatus.Running, startedAt, null, null);
     }
 
     /// <summary>Records the result of the execution.</summary>
     /// <param name="result">The result.</param>
-    /// <param name="completedAt">The completion time.</param>
+    /// <param name="completedAt">The completion time. It cannot be before the start time, or before the request time if the execution did not start.</param>
     /// <returns>A completed execution.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="result"/> is null.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="completedAt"/> is before the step before it.</exception>
     /// <exception cref="InvalidOperationException">
     /// The execution is complete, or it is pending and the outcome is not <see cref="ExecutionOutcome.Canceled"/>.
     /// </exception>
@@ -102,6 +106,8 @@ public sealed class Execution
         {
             throw new InvalidOperationException($"Execution {Id} did not start, so it can complete only as Canceled, not as {result.Outcome}.");
         }
+
+        ArgumentOutOfRangeException.ThrowIfLessThan(completedAt, StartedAt ?? Request.RequestedAt);
 
         return new Execution(Request, ExecutionStatus.Completed, StartedAt, completedAt, result);
     }

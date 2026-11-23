@@ -19,6 +19,12 @@ namespace Codepad.Domain.Results;
 /// <para>
 /// The domain defines the limits in <c>ResultPolicy</c>. It does not convert .NET values and calls no getters.
 /// </para>
+/// <para>
+/// Deserialization runs the same checks as the constructors. Bad wire data can throw <c>JsonException</c>,
+/// or an <see cref="ArgumentException"/> (also <see cref="ArgumentNullException"/> and
+/// <see cref="ArgumentOutOfRangeException"/>) from a constructor. A receiver must treat both kinds as bad data,
+/// for example as a <c>WorkerFailed</c> outcome. Then it checks the tree with <c>ResultPolicy.FindExceededLimit</c>.
+/// </para>
 /// </remarks>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
 [JsonDerivedType(typeof(NullNode), "null")]

@@ -46,8 +46,8 @@ public sealed record ResultPolicy(int MaxDepth, int MaxItems, int MaxTextLength,
     public bool InvokePropertyGetters { get; } = InvokePropertyGetters;
 
     /// <summary>
-    /// Finds the first limit that a tree goes over. The check stops at that limit, so its work is bounded by
-    /// <see cref="MaxNodes"/> and it uses no recursion.
+    /// Finds the first limit that a tree goes over. The check stops at that limit. It visits at most
+    /// <see cref="MaxNodes"/> nodes, it holds at most <see cref="MaxNodes"/> nodes on its stack, and it uses no recursion.
     /// </summary>
     /// <param name="root">The root of the tree.</param>
     /// <returns>The limit that the tree goes over, or null if the tree is inside all limits.</returns>
@@ -56,21 +56,16 @@ public sealed record ResultPolicy(int MaxDepth, int MaxItems, int MaxTextLength,
     {
         ArgumentNullException.ThrowIfNull(root);
 
+        // Count each node when it goes on the stack, before the push. So the stack never holds more than MaxNodes entries.
         Stack<(ResultNode Node, int Depth)> pending = new Stack<(ResultNode Node, int Depth)>();
         pending.Push((root, 0));
-        int nodes = 0;
+        int nodes = 1;
 
         while (pending.TryPop(out (ResultNode Node, int Depth) entry))
         {
             if (entry.Depth > MaxDepth)
             {
                 return TruncationReason.DepthLimit;
-            }
-
-            nodes++;
-            if (nodes > MaxNodes)
-            {
-                return TruncationReason.NodeLimit;
             }
 
             switch (entry.Node)
@@ -86,6 +81,12 @@ public sealed record ResultPolicy(int MaxDepth, int MaxItems, int MaxTextLength,
                         return TruncationReason.ItemLimit;
                     }
 
+                    nodes += obj.Properties.Count;
+                    if (nodes > MaxNodes)
+                    {
+                        return TruncationReason.NodeLimit;
+                    }
+
                     foreach (ResultProperty property in obj.Properties)
                     {
                         pending.Push((property.Value, entry.Depth + 1));
@@ -97,6 +98,12 @@ public sealed record ResultPolicy(int MaxDepth, int MaxItems, int MaxTextLength,
                     if (sequence.Items.Count > MaxItems)
                     {
                         return TruncationReason.ItemLimit;
+                    }
+
+                    nodes += sequence.Items.Count;
+                    if (nodes > MaxNodes)
+                    {
+                        return TruncationReason.NodeLimit;
                     }
 
                     foreach (ResultNode item in sequence.Items)

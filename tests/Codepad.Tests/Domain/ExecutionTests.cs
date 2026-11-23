@@ -96,6 +96,41 @@ public sealed class ExecutionTests
     }
 
     [Fact]
+    public void StartRejectsATimeBeforeTheRequest()
+    {
+        Execution pending = Execution.Create(NewRequest());
+
+        ArgumentOutOfRangeException error = Assert.Throws<ArgumentOutOfRangeException>(() => pending.Start(s_requested.AddTicks(-1)));
+        Assert.Equal("startedAt", error.ParamName);
+    }
+
+    [Fact]
+    public void CompleteRejectsATimeBeforeTheStart()
+    {
+        Execution running = Execution.Create(NewRequest()).Start(s_started);
+
+        ArgumentOutOfRangeException error = Assert.Throws<ArgumentOutOfRangeException>(() => running.Complete(s_success, s_started.AddTicks(-1)));
+        Assert.Equal("completedAt", error.ParamName);
+    }
+
+    [Fact]
+    public void CancelOfAPendingExecutionRejectsATimeBeforeTheRequest()
+    {
+        Execution pending = Execution.Create(NewRequest());
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => pending.Complete(s_canceled, s_requested.AddTicks(-1)));
+    }
+
+    [Fact]
+    public void TransitionsAcceptTheSameTimeAsTheStepBefore()
+    {
+        Execution completed = Execution.Create(NewRequest()).Start(s_requested).Complete(s_success, s_requested);
+
+        Assert.Equal(s_requested, completed.StartedAt);
+        Assert.Equal(s_requested, completed.CompletedAt);
+    }
+
+    [Fact]
     public void CompleteRejectsANullResult()
     {
         Execution running = Execution.Create(NewRequest()).Start(s_started);

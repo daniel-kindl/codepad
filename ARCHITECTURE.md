@@ -56,7 +56,7 @@ Tests check the dependency direction. See [#1] and [#2].
 
 - Domain is independent. It has no IO and no UI types. It references only the .NET base class
   library, and it reads no clock: the caller supplies each timestamp. `ModuleDependencyTests`
-  checks the assembly references and the IO and OS type references.
+  checks the assembly references and the IO, ADO.NET and OS type references.
 - Application owns the use cases. It declares an interface for each IO need.
 - Infrastructure implements those interfaces.
 - Desktop creates the objects and connects them. It holds no business rules.
@@ -102,7 +102,12 @@ Packaging is not an adapter. [#15] builds a separate artifact for each OS.
   By default the converter does not call property getters. `ResultPolicy.FindExceededLimit` lets a
   receiver refuse a tree that ignores the limits, with no recursion.
 - **The wire format is System.Text.Json.** The `kind` property names the node kind. Enums are text.
-  Domain needs no package for this.
+  Domain needs no package for this. Bad wire data throws `JsonException` or an `ArgumentException`
+  from a constructor. A receiver treats both as bad data.
+- **Timestamps go forward.** An execution step cannot have a time before the step before it. An
+  experiment edit with an earlier clock time still applies, and `ModifiedAt` stays the same.
+- **Storage rebuilds with checks.** `Experiment.Restore` rebuilds a stored experiment at its
+  revision. It rejects a revision below 1 and a `ModifiedAt` before `CreatedAt`.
 
 ## Operations
 

@@ -98,6 +98,19 @@ public sealed class ResultSerializationTests
     }
 
     [Fact]
+    public void DeserializeRejectsAnObjectWithNoPropertiesAsAnArgumentException()
+    {
+        // A receiver must treat JsonException and ArgumentException alike as bad data. See ResultNode.
+        Assert.ThrowsAny<ArgumentException>(() => JsonSerializer.Deserialize<ResultNode>("""{"kind":"object","typeName":"P"}""", s_options));
+    }
+
+    [Fact]
+    public void DeserializeRejectsAnUndefinedReasonNumberAsAnArgumentException()
+    {
+        Assert.ThrowsAny<ArgumentException>(() => JsonSerializer.Deserialize<ResultNode>("""{"kind":"truncated","typeName":null,"reason":99}""", s_options));
+    }
+
+    [Fact]
     public void DeserializeRejectsAnUnknownKind()
     {
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ResultNode>("""{"kind":"image"}""", s_options));

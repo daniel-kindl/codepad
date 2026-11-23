@@ -18,6 +18,7 @@ public sealed class ModuleDependencyTests
         { "Codepad.Domain", "Avalonia" },
         { "Codepad.Domain", "Microsoft.Data.Sqlite" },
         { "Codepad.Domain", "Microsoft.CodeAnalysis" },
+        { "Codepad.Domain", "System.Data" },
         { "Codepad.Application", "Codepad.Infrastructure" },
         { "Codepad.Application", "Codepad.Desktop" },
         { "Codepad.Application", "Avalonia" },
@@ -57,6 +58,7 @@ public sealed class ModuleDependencyTests
     {
         "System.IO.",
         "System.Net.",
+        "System.Data.",
         "Microsoft.Win32.",
         "System.Diagnostics.Process",
         "System.Environment",
@@ -66,9 +68,9 @@ public sealed class ModuleDependencyTests
 
     [Theory]
     [MemberData(nameof(ForbiddenDomainTypePrefixes))]
-    public void DomainUsesNoIoOrOperatingSystemType(string forbiddenPrefix)
+    public void DomainUsesNoIoPersistenceOrOperatingSystemType(string forbiddenPrefix)
     {
-        // IO and OS types live in System.Runtime, so the assembly references cannot show them. The type references can.
+        // IO, ADO.NET and OS types live in System.Runtime or System.Data.Common, so the assembly references cannot show them. The type references can.
         IEnumerable<string> types = DomainTypeReferences();
 
         Assert.DoesNotContain(types, name => name.StartsWith(forbiddenPrefix, StringComparison.Ordinal));

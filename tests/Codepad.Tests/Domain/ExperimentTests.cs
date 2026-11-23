@@ -104,6 +104,51 @@ public sealed class ExperimentTests
     }
 
     [Fact]
+    public void EditWithAnEarlierClockTimeKeepsModifiedAt()
+    {
+        // A clock change must not lose an edit, so the edit applies and ModifiedAt never goes back.
+        Experiment original = NewExperiment();
+
+        Experiment edited = original.WithSource("2", s_created.AddMinutes(-10));
+
+        Assert.Equal("2", edited.Source);
+        Assert.Equal(2, edited.Revision);
+        Assert.Equal(s_created, edited.ModifiedAt);
+    }
+
+    [Fact]
+    public void RestoreRebuildsAStoredExperiment()
+    {
+        ExperimentId id = ExperimentId.New();
+
+        Experiment experiment = Experiment.Restore(id, OperationKind.Json, "Doc", "{}", "in", s_created, s_edited, 7);
+
+        Assert.Equal(id, experiment.Id);
+        Assert.Equal(OperationKind.Json, experiment.Kind);
+        Assert.Equal("Doc", experiment.Title);
+        Assert.Equal("{}", experiment.Source);
+        Assert.Equal("in", experiment.Input);
+        Assert.Equal(s_created, experiment.CreatedAt);
+        Assert.Equal(s_edited, experiment.ModifiedAt);
+        Assert.Equal(7, experiment.Revision);
+        Assert.Equal(8, experiment.WithSource("[]", s_edited).Revision);
+    }
+
+    [Fact]
+    public void RestoreRejectsValuesThatNoExperimentCanHave()
+    {
+        ExperimentId id = ExperimentId.New();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => Experiment.Restore(id, OperationKind.Json, "t", "{}", "", s_created, s_edited, 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Experiment.Restore(id, OperationKind.Json, "t", "{}", "", s_edited, s_created, 1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Experiment.Restore(id, (OperationKind)99, "t", "{}", "", s_created, s_edited, 1));
+        Assert.Throws<ArgumentNullException>(() => Experiment.Restore(null!, OperationKind.Json, "t", "{}", "", s_created, s_edited, 1));
+        Assert.Throws<ArgumentNullException>(() => Experiment.Restore(id, OperationKind.Json, null!, "{}", "", s_created, s_edited, 1));
+        Assert.Throws<ArgumentNullException>(() => Experiment.Restore(id, OperationKind.Json, "t", null!, "", s_created, s_edited, 1));
+        Assert.Throws<ArgumentNullException>(() => Experiment.Restore(id, OperationKind.Json, "t", "{}", null!, s_created, s_edited, 1));
+    }
+
+    [Fact]
     public void ExperimentIdRejectsTheEmptyGuid()
     {
         Assert.Throws<ArgumentException>(() => new ExperimentId(Guid.Empty));

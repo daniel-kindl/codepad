@@ -10,12 +10,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The
 
 ### Added
 
-- Domain model (#2): `Experiment` with revisions, immutable `ExecutionRequest` snapshots and
+- Domain model (#2): `Experiment` with revisions and `Restore`, immutable `ExecutionRequest` snapshots and
   reruns, the `Execution` lifecycle with six outcomes, operation and result policies, diagnostics,
   and the bounded `ResultNode` tree with truncation reasons. Results and diagnostics serialize
   with System.Text.Json.
 - `CONTEXT.md`: the domain glossary.
-- Architecture tests: Domain references only the .NET base class library and uses no IO or OS
+- Architecture tests: Domain references only the .NET base class library and uses no IO, ADO.NET or OS
   types.
 - Avalonia desktop shell for Linux and Windows: one window with a File menu, a workspace region
   and a status region, in light and dark themes.
