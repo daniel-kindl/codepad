@@ -64,7 +64,7 @@ public sealed class CSharpCompletionProvider : ICSharpCompletionProvider
         CSharpCompilation compilation = ScriptCompilationFactory.Create(tree);
         SemanticModel model = compilation.GetSemanticModel(tree);
         List<Candidate> candidates;
-        if (before >= 0 && source[before] == '.')
+        if (before >= 0 && source[before] == '.' && root.FindToken(before).IsKind(SyntaxKind.DotToken))
         {
             ExpressionSyntax? target = FindMemberTarget(root, before);
             if (target is null)

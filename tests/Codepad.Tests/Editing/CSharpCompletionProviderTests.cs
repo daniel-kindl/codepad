@@ -196,6 +196,17 @@ public sealed class CSharpCompletionProviderTests
         Assert.False(File.Exists(marker));
     }
 
+    [Theory]
+    [InlineData("// done.\nCon", "Console")]
+    [InlineData("// done.\n", "Console")]
+    [InlineData("#region end.\nwhi", "while")]
+    public async Task ADotAtTheEndOfAnEarlierCommentDoesNotMakeAMemberContext(string source, string expected)
+    {
+        CompletionResult result = await CompleteAtEndAsync(source);
+
+        Assert.Contains(result.Items, item => item.Text == expected);
+    }
+
     [Fact]
     public async Task ACancelledRequestThrows()
     {
