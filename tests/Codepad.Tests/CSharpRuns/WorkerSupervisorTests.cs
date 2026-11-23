@@ -142,7 +142,7 @@ public sealed class WorkerSupervisorTests : IDisposable
         Directory.CreateDirectory(_harness.WorkingDirectory);
         string source = $$"""
             var info = OperatingSystem.IsWindows()
-                ? new System.Diagnostics.ProcessStartInfo("ping", "-n 300 127.0.0.1")
+                ? new System.Diagnostics.ProcessStartInfo("cmd.exe", "/c ping -n 300 127.0.0.1 > NUL")
                 : new System.Diagnostics.ProcessStartInfo("sleep", "300");
             info.UseShellExecute = false;
             var child = System.Diagnostics.Process.Start(info)!;

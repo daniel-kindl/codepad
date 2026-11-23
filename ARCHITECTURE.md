@@ -212,7 +212,8 @@ Rules for the run. See [#4] and [#7].
 - The protocol uses the raw standard input and output of the worker. The worker replaces
   `Console.Out` and `Console.Error` before the script runs, so the output of the script cannot
   corrupt a frame. A script that opens the raw stream itself can corrupt the protocol. The supervisor
-  then reports `WorkerMalformedMessage`. The script is trusted.
+  then reports `WorkerMalformedMessage`. The same happens when the script starts a program that writes to
+  the standard output that it inherits. The script is trusted, and v0.1 does not guard against this.
 - Both messages carry `ProtocolVersion`. A receiver rejects another version. The response repeats the
   execution ID and the source revision, and the supervisor checks both.
 - The worker keeps at most `MaxOutputChars` characters of stdout and of stderr, and records the original
