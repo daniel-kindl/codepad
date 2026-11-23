@@ -94,6 +94,11 @@ public sealed partial class WorkerSupervisor(WorkerLaunchOptions options, ILogge
         {
             await FrameCodec.WriteAsync(process.StandardInput.BaseStream, message, WorkerProtocol.MaxMessageBytes, token).ConfigureAwait(false);
         }
+        catch (FrameException)
+        {
+            // The request is larger than the protocol allows. The worker never gets it.
+            return Failed(request, ExecutionOutcome.WorkerFailed, "WorkerRequestTooLarge", "The source is too large to send to the worker.");
+        }
         catch (IOException)
         {
             // The worker closed its input. It may have written a response or exited. The read below finds out.
