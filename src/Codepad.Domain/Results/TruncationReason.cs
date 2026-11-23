@@ -23,4 +23,7 @@ public enum TruncationReason
 
     /// <summary>The conversion used all of its time, for example on a slow or endless sequence.</summary>
     TimeLimit,
+
+    /// <summary>Reading the value threw an exception, for example while the converter walked a sequence. The tree holds what it read before.</summary>
+    Error,
 }

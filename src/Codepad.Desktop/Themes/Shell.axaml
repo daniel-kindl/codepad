@@ -99,4 +99,80 @@
     <Setter Property="FontSize" Value="{StaticResource ShellBodyFontSize}" />
   </Style>
 
+  <!-- The result panel. -->
+
+  <Style Selector="Border.results-header">
+    <Setter Property="Background" Value="{DynamicResource ShellStatusBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ShellBorderBrush}" />
+    <Setter Property="BorderThickness" Value="0,1,0,1" />
+    <Setter Property="Padding" Value="{StaticResource ShellStatusPadding}" />
+  </Style>
+
+  <Style Selector="TextBlock.run-status">
+    <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="FontSize" Value="{StaticResource ShellBodyFontSize}" />
+  </Style>
+  <Style Selector="TextBlock.run-status.success">
+    <Setter Property="Foreground" Value="{DynamicResource EditorSuccessBrush}" />
+  </Style>
+  <Style Selector="TextBlock.run-status.error">
+    <Setter Property="Foreground" Value="{DynamicResource EditorErrorBrush}" />
+  </Style>
+  <Style Selector="TextBlock.run-status.warning">
+    <Setter Property="Foreground" Value="{DynamicResource EditorWarningBrush}" />
+  </Style>
+
+  <Style Selector="TextBlock.run-info">
+    <Setter Property="Foreground" Value="{DynamicResource ShellMutedTextBrush}" />
+    <Setter Property="FontSize" Value="{StaticResource ShellBodyFontSize}" />
+  </Style>
+
+  <Style Selector="TextBlock.notice">
+    <Setter Property="Foreground" Value="{DynamicResource ShellWarningTextBrush}" />
+    <Setter Property="FontSize" Value="{StaticResource ShellBodyFontSize}" />
+    <Setter Property="Margin" Value="8,6" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+
+  <Style Selector="TextBox.value-text">
+    <Setter Property="FontFamily" Value="{StaticResource EditorFontFamily}" />
+    <Setter Property="FontSize" Value="{StaticResource EditorFontSize}" />
+    <Setter Property="Background" Value="{DynamicResource ShellWorkspaceBackgroundBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+
+  <Style Selector="TextBlock.tree-label">
+    <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="TextBlock.tree-summary">
+    <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+    <Setter Property="FontFamily" Value="{StaticResource EditorFontFamily}" />
+  </Style>
+  <Style Selector="TextBlock.tree-type">
+    <Setter Property="Foreground" Value="{DynamicResource ShellMutedTextBrush}" />
+  </Style>
+  <Style Selector="DataGrid">
+    <Setter Property="Background" Value="{DynamicResource ShellWorkspaceBackgroundBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <Style Selector="DataGridColumnHeader">
+    <Setter Property="Background" Value="{DynamicResource ShellStatusBackgroundBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+  </Style>
+  <Style Selector="DataGridRow">
+    <Setter Property="MinHeight" Value="0" />
+  </Style>
+  <Style Selector="TabControl > TabItem">
+    <Setter Property="FontSize" Value="{StaticResource ShellBodyFontSize}" />
+    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="Padding" Value="12,6" />
+  </Style>
+  <Style Selector="TreeView > TreeViewItem">
+    <Setter Property="IsExpanded" Value="True" />
+  </Style>
+
 </Styles>

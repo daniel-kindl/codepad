@@ -26,6 +26,7 @@
       <SolidColorBrush x:Key="EditorErrorBrush" Color="#B3261E" />
       <SolidColorBrush x:Key="EditorWarningBrush" Color="#8F4A00" />
       <SolidColorBrush x:Key="EditorInfoBrush" Color="#5E5E5E" />
+      <SolidColorBrush x:Key="EditorSuccessBrush" Color="#1B6E3A" />
     </ResourceDictionary>
     <ResourceDictionary x:Key="Dark">
       <SolidColorBrush x:Key="ShellWorkspaceBackgroundBrush" Color="#1C1C1C" />
@@ -43,6 +44,7 @@
       <SolidColorBrush x:Key="EditorErrorBrush" Color="#FF8A80" />
       <SolidColorBrush x:Key="EditorWarningBrush" Color="#FFC857" />
       <SolidColorBrush x:Key="EditorInfoBrush" Color="#ADADAD" />
+      <SolidColorBrush x:Key="EditorSuccessBrush" Color="#7FD6A0" />
     </ResourceDictionary>
   </ResourceDictionary.ThemeDictionaries>
 

@@ -15,6 +15,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The
 
 ### Added
 
+- Result panel (#7): a status header, and tabs for the result, problems, standard output and standard error.
+  A number, a string or null shows as selectable text. An object or nested list shows as an expandable tree
+  that opens its rows when asked. A list of objects with the same properties shows as a table. A cut value says
+  why. A failed, canceled or timed-out run keeps the last successful value on screen. Copy puts the bounded
+  value on the clipboard as JSON. The panel shows "No run yet" until a later change connects a run.
+- The worker now shows records, anonymous types, tuples and plain classes by their fields and stored
+  auto-property values, without calling a getter. A dictionary shows its keys and values. An exception while
+  it reads a sequence, or a slow sequence, stops the read and keeps what it has (`TruncationReason.Error`
+  and `TimeLimit`).
 - C# code completion (#6): keywords, names in scope and members, from the same Roslyn script compilation as
   the diagnostics. Suggestions open as you type a name or a dot, and with Ctrl+Space. Enter or Tab accepts,
   Escape closes, and a punctuation key closes the list and keeps what you typed. A request for an old text

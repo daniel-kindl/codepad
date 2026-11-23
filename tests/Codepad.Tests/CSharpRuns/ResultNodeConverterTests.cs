@@ -109,14 +109,137 @@ public sealed class ResultNodeConverterTests
     }
 
     [Fact]
-    public void ObjectWithGettersOffBecomesUnsupportedWithoutCallingAGetter()
+    public void ObjectWithGettersOffIsShownWithoutCallingAGetter()
     {
         Probe probe = new Probe();
 
-        UnsupportedNode node = Assert.IsType<UnsupportedNode>(Convert(probe));
+        ResultNode node = Convert(probe);
 
-        Assert.Equal(typeof(Probe).FullName, node.TypeName);
+        // Name has a computed getter, so it is not shown. GetterCalled is an auto-property, so its stored value is.
+        ObjectNode shown = Assert.IsType<ObjectNode>(node);
+        Assert.Equal(typeof(Probe).FullName, shown.TypeName);
+        Assert.DoesNotContain(shown.Properties, property => property.Name == "Name");
+        Assert.Equal("False", Assert.IsType<ScalarNode>(shown.Properties.Single(property => property.Name == "GetterCalled").Value).Value);
         Assert.False(probe.GetterCalled);
+    }
+
+    private sealed record Person(string Name, int Age, Address Home);
+
+    private sealed record Address(string City);
+
+    [Fact]
+    public void RecordWithGettersOffShowsItsDeclaredDataAsNestedObjects()
+    {
+        ObjectNode node = Assert.IsType<ObjectNode>(Convert(new Person("Ada", 36, new Address("London"))));
+
+        Assert.Equal(["Name", "Age", "Home"], node.Properties.Select(property => property.Name));
+        Assert.Equal("Ada", Assert.IsType<TextNode>(node.Properties[0].Value).Value);
+        Assert.Equal("36", Assert.IsType<ScalarNode>(node.Properties[1].Value).Value);
+        ObjectNode home = Assert.IsType<ObjectNode>(node.Properties[2].Value);
+        Assert.Equal("London", Assert.IsType<TextNode>(home.Properties.Single().Value).Value);
+    }
+
+    [Fact]
+    public void AnonymousObjectAndTupleShowTheirMembers()
+    {
+        ObjectNode anonymous = Assert.IsType<ObjectNode>(Convert(new { Id = 7, Label = "x" }));
+        ObjectNode tuple = Assert.IsType<ObjectNode>(Convert((1, "two")));
+
+        Assert.Equal(["Id", "Label"], anonymous.Properties.Select(property => property.Name));
+        Assert.Equal(["Item1", "Item2"], tuple.Properties.Select(property => property.Name));
+    }
+
+    private sealed class Throwing
+    {
+        public int Safe { get; } = 1;
+
+        public int Computed => Safe == 1 ? throw new InvalidOperationException("never call me") : 0;
+    }
+
+    [Fact]
+    public void ComputedPropertyThatThrowsIsNeverCalledWithGettersOff()
+    {
+        ObjectNode node = Assert.IsType<ObjectNode>(Convert(new Throwing()));
+
+        Assert.Equal(["Safe"], node.Properties.Select(property => property.Name));
+    }
+
+    [Fact]
+    public void GetterThatThrowsWithGettersOnBecomesUnsupportedNode()
+    {
+        ResultPolicy policy = new ResultPolicy(16, 1_000, 10_000, 50_000, InvokePropertyGetters: true);
+
+        ObjectNode node = Assert.IsType<ObjectNode>(Convert(new Throwing(), policy));
+
+        UnsupportedNode failed = Assert.IsType<UnsupportedNode>(node.Properties.Single(property => property.Name == "Computed").Value);
+        Assert.Contains("InvalidOperationException", failed.Text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DictionaryBecomesASequenceOfKeyValueObjects()
+    {
+        SequenceNode node = Assert.IsType<SequenceNode>(Convert(new Dictionary<string, int> { ["a"] = 1, ["b"] = 2 }));
+
+        Assert.Equal(2, node.Items.Count);
+        ObjectNode first = Assert.IsType<ObjectNode>(node.Items[0]);
+        Assert.Equal(["Key", "Value"], first.Properties.Select(property => property.Name));
+        Assert.Equal("a", Assert.IsType<TextNode>(first.Properties[0].Value).Value);
+        Assert.Equal("1", Assert.IsType<ScalarNode>(first.Properties[1].Value).Value);
+    }
+
+    private static IEnumerable<int> FailsAfterTwo()
+    {
+        yield return 1;
+        yield return 2;
+        throw new InvalidOperationException("boom");
+    }
+
+    [Fact]
+    public void ExceptionWhileEnumeratingKeepsTheItemsReadSoFar()
+    {
+        SequenceNode node = Assert.IsType<SequenceNode>(Convert(FailsAfterTwo()));
+
+        Assert.Equal(2, node.Items.Count);
+        Assert.Equal(TruncationReason.Error, node.Truncation);
+    }
+
+    private static IEnumerable<int> SlowEndless()
+    {
+        int next = 0;
+        while (true)
+        {
+            Thread.Sleep(5);
+            yield return next++;
+        }
+    }
+
+    [Fact]
+    public void SlowEnumerationStopsAtTheTimeBudget()
+    {
+        ResultPolicy policy = new ResultPolicy(16, 1_000_000, 10_000, 1_000_000, InvokePropertyGetters: false);
+
+        ResultNode node = new ResultNodeConverter(policy, TimeSpan.FromMilliseconds(100)).Convert(SlowEndless());
+
+        SequenceNode sequence = Assert.IsType<SequenceNode>(node);
+        Assert.Equal(TruncationReason.TimeLimit, sequence.Truncation);
+        Assert.NotEmpty(sequence.Items);
+    }
+
+    [Fact]
+    public void DeepNestingBecomesADepthTruncationNotARecursionFailure()
+    {
+        object?[] root = new object?[1];
+        object?[] current = root;
+        for (int i = 0; i < 5_000; i++)
+        {
+            object?[] next = new object?[1];
+            current[0] = next;
+            current = next;
+        }
+
+        ResultNode node = Convert(root);
+
+        Assert.Null(ResultPolicy.Default.FindExceededLimit(node));
     }
 
     [Fact]

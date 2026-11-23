@@ -68,8 +68,16 @@ public sealed class MainWindowTests
         Press(window, PhysicalKey.Escape);
         Assert.Same(FindByName(window, "Diagnostics"), window.FocusManager?.GetFocusedElement());
 
-        // A Tab from the list wraps around to the File menu. Focus never gets trapped.
-        Press(window, PhysicalKey.Tab);
+        // Tab from the list goes on through the result panel, reaches its tabs, and wraps around to the File menu.
+        // Focus never gets trapped.
+        bool reachedResultTabs = false;
+        for (int step = 0; step < 8 && !ReferenceEquals(window.FocusManager?.GetFocusedElement(), file); step++)
+        {
+            Press(window, PhysicalKey.Tab);
+            reachedResultTabs |= window.FocusManager?.GetFocusedElement() is TabItem;
+        }
+
+        Assert.True(reachedResultTabs);
         Assert.Same(file, window.FocusManager?.GetFocusedElement());
 
         // Alt+F opens the menu and moves focus to Exit. Escape closes it and gives focus back to File.

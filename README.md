@@ -107,6 +107,10 @@ minus or the mouse wheel changes the font size. Suggestions open as you type a n
 with Ctrl+Space. Use Up and Down to choose, Enter or Tab to accept, and Escape to close. The editor text is not saved yet. Saving and tabs
 come with a later change.
 
+Below the editor is a result panel. It shows the status of a run, its value (as text, a tree or a
+table), its problems, and its output. You cannot run code from the app yet, so the panel says "No run
+yet".
+
 The app writes JSON log events to standard output. The events do not hold source, input, results
 or file paths. Each JSON line has the numeric `EventId`. The output does not hold the event name.
 The name is the stable label in the code (`[LoggerMessage]` in `src/Codepad.Desktop/Program.cs`)
