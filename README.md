@@ -93,6 +93,13 @@ The data folder is `$XDG_DATA_HOME/codepad` (default `~/.local/share/codepad/`) 
 `%LOCALAPPDATA%\CodePad` on Windows. If CodePad cannot write to it, the app starts and shows a
 message in the status bar.
 
+CodePad keeps experiments and settings in one SQLite file, `codepad.db`, in the data folder. No
+account and no cloud service is needed. If the file cannot be opened, for example because it comes
+from a newer CodePad, the app starts and shows a message in the status bar. CodePad never deletes
+or changes a database that it cannot open. The storage layer keeps the last committed edit after a
+stop without a normal shutdown, and never runs restored source. The editor (#5) will use it to
+restore your work. The editor does not exist yet.
+
 The app writes JSON log events to standard output. The events do not hold source, input, results
 or file paths. Each JSON line has the numeric `EventId`. The output does not hold the event name.
 The name is the stable label in the code (`[LoggerMessage]` in `src/Codepad.Desktop/Program.cs`)

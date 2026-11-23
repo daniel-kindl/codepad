@@ -23,6 +23,10 @@ Optional text for a C# experiment. The snippet reads it as standard input. A JSO
 The number of the current version of an experiment. Each edit that changes the title, the source or the input
 adds 1.
 
+**Save state**:
+The state of the stored copy of the open experiment: clean, dirty, saving, saved or error. Saved means that the
+write is durable. An error keeps the edited text in the editor.
+
 ### Executions
 
 **Execution request**:

@@ -10,7 +10,9 @@ For the product scope, see [PRODUCT.md](PRODUCT.md).
 
 [#1] created four projects: `Codepad.Domain`, `Codepad.Application`, `Codepad.Infrastructure` and
 `Codepad.Desktop`. Each module has its own assembly. [#2] added the domain model. See
-[Domain model](#domain-model). [#4] creates Contracts and Worker. [#19] creates the CLI.
+[Domain model](#domain-model). [#3] added storage. See
+[Storage and retention](#storage-and-retention). [#4] creates Contracts and Worker. [#19] creates
+the CLI.
 
 The Desktop app opens one window with a menu, a workspace region and a status region. At startup
 it reads an optional settings file and prepares the data folder. A problem with either does not
@@ -191,8 +193,21 @@ The release documentation states this limit. See [#15].
 
 ## Storage and retention
 
-- One SQLite database in the per-user data folder. See [#3].
-- The schema has a version. Only controlled migrations change the schema.
+- One SQLite database in the per-user data folder: `codepad.db`. See [#3].
+- The schema has a version in `PRAGMA user_version`. `SqliteMigrations` lists the steps. Each step
+  runs in one transaction, so a failed step leaves no partial schema. Never edit a released step.
+  The app refuses a database with a higher version than it knows and leaves the file as it is.
+- The database uses write-ahead logging and `synchronous = FULL`. A commit is durable. After a crash,
+  SQLite drops the transaction that did not commit and keeps the last commit.
+- The write for an experiment is one `INSERT ... ON CONFLICT DO UPDATE ... WHERE excluded.revision >
+  experiments.revision`. The revision check and the write are one statement. A late write with an
+  older revision changes nothing and returns `Stale`.
+- `AutosaveSession` (Application) owns the debounce, the write order and the save state. The editor
+  gives it each new revision and calls `FlushAsync` on a tab switch and on shutdown. The session
+  keeps the edited buffer after a failure. It does not retry by itself: the next edit or a Retry
+  tries again. The storage failure reasons are `disk_full`, `read_only`, `busy`, `io_error`,
+  `corrupt`, `cannot_open`, `schema_too_new` and `migration_failed`. A reason never holds source or a path.
+- The tables `execution_history` and `tab_session` are reserved. [#8] and [#10] add their columns.
 - Each write is a transaction. The UI shows dirty, saving, saved and error states. The app does not
   say "saved" before the commit is durable.
 - Each experiment has a revision number. An older write cannot replace a newer revision.
@@ -238,14 +253,14 @@ implementation. Record a durable decision as an ADR in `docs/adr/` when it passe
 | V-04 | Which IPC transport and framing: standard streams or local pipes, length-prefixed or line-delimited JSON? | [#4] |
 | V-05 | Which process tree stop works on each OS? Which resource limits are not available on one OS? | [#4], [#14] |
 | V-06 | Which Avalonia editor component? Check it for selection, undo, IME, zoom and accessibility. | [#5] |
-| V-07 | Which XDG fallback folders on Linux? | [#3] |
+| V-07 | Which XDG fallback folders on Linux? Resolved in [#3]: `$XDG_DATA_HOME/codepad` and `$XDG_CONFIG_HOME/codepad`, with `~/.local/share` and `~/.config` when the variable is not set. | [#3] |
 | V-08 | Is a plain bounded SQLite query fast enough for search, or is FTS needed? Measure first. | [#11] |
 | V-09 | Which module holds the live JSON provider? Does it run in the desktop process on a background thread? | [#9] |
 | V-10 | Which Linux artifact format: an archive or a distribution package? | [#15] |
 | V-11 | Which signature scheme for the update manifest, and how does the owner keep the key? | [#15], [#17] |
 | V-12 | How does the update helper replace the app and roll back on each OS? | [#17] |
 | V-13 | Do Contracts use Domain to carry `ResultNode`? Does Worker use only Contracts? Partly resolved in [#2]: `ResultNode`, diagnostics and outcomes serialize with System.Text.Json and no package, so Contracts can carry them. [#4] decides the module references. | [#1], [#2], [#4] |
-| V-14 | How do the CLI and a running desktop app share one SQLite database safely? | [#3], [#19] |
+| V-14 | How do the CLI and a running desktop app share one SQLite database safely? Partly resolved in [#3]: write-ahead logging allows readers during a write, and a writer waits up to 5 seconds, then reports `busy`. [#19] decides the rest. | [#3], [#19] |
 | V-15 | Is the CLI a separate executable or a mode of the desktop executable? How does it get on the PATH? | [#15], [#17], [#19] |
 | V-16 | Which command names and argument shapes does the CLI use? | [#19] |
 
