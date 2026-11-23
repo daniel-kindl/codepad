@@ -3,6 +3,7 @@
         xmlns:shell="using:Codepad.Desktop.Shell"
         xmlns:editor="using:Codepad.Desktop.Editor"
         xmlns:results="using:Codepad.Desktop.Results"
+        xmlns:history="using:Codepad.Desktop.History"
         x:Class="Codepad.Desktop.Shell.MainWindow"
         x:DataType="shell:MainWindowViewModel"
         Title="{Binding Title}"
@@ -26,6 +27,11 @@
                  TextWrapping="Wrap"
                  AutomationProperties.Name="Status"
                  AutomationProperties.LiveSetting="Polite" />
+    </Border>
+
+    <Border DockPanel.Dock="Right" Width="300" IsVisible="{Binding HasHistory}"
+            BorderBrush="{DynamicResource ShellBorderBrush}" BorderThickness="1,0,0,0">
+      <history:RunHistoryView DataContext="{Binding History}" />
     </Border>
 
     <Grid AutomationProperties.Name="Workspace">

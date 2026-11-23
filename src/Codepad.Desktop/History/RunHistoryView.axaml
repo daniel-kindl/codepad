@@ -1,0 +1,49 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:history="using:Codepad.Desktop.History"
+             x:Class="Codepad.Desktop.History.RunHistoryView"
+             x:DataType="history:RunHistoryViewModel">
+
+  <Grid RowDefinitions="Auto,*,Auto,Auto" AutomationProperties.Name="Run history">
+
+    <Border Grid.Row="0" Classes="results-header">
+      <TextBlock Classes="run-status" Text="History" />
+    </Border>
+
+    <Grid Grid.Row="1">
+      <TextBlock Classes="empty-body" Margin="12" TextWrapping="Wrap"
+                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                 IsVisible="{Binding !Items.Count}"
+                 Text="{Binding EmptyText}" />
+      <ListBox x:Name="RunList" ItemsSource="{Binding Items}" Focusable="True"
+               IsVisible="{Binding !!Items.Count}"
+               SelectionMode="Single"
+               AutomationProperties.Name="Saved runs, newest first">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="history:RunHistoryItem">
+            <TextBlock Text="{Binding Text}" TextWrapping="Wrap" AutomationProperties.Name="{Binding AccessibleName}" />
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Grid>
+
+    <StackPanel Grid.Row="2" Spacing="4" Margin="8,4" IsVisible="{Binding IsInspecting}">
+      <TextBlock Classes="notice" Margin="0" TextWrapping="Wrap" Text="{Binding InspectionText}"
+                 AutomationProperties.Name="Saved run notice" />
+      <TextBox x:Name="SavedSource" Classes="value-text" IsReadOnly="True" AcceptsReturn="True"
+               TextWrapping="NoWrap" MaxHeight="160"
+               Text="{Binding InspectedSource, Mode=OneWay}"
+               AutomationProperties.Name="Saved source" />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button x:Name="RerunButton" Content="Rerun this code" IsEnabled="{Binding CanRerun}"
+                Click="OnRerunClick" AutomationProperties.Name="Rerun the saved code" />
+        <Button Content="Close saved run" Click="OnCloseClick" AutomationProperties.Name="Close the saved run" />
+      </StackPanel>
+    </StackPanel>
+
+    <TextBlock Grid.Row="3" Classes="notice" TextWrapping="Wrap"
+               IsVisible="{Binding Notice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+               Text="{Binding Notice}" AutomationProperties.Name="History notice"
+               AutomationProperties.LiveSetting="Polite" />
+  </Grid>
+</UserControl>
