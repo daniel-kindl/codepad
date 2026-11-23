@@ -8,8 +8,13 @@ For the product scope, see [PRODUCT.md](PRODUCT.md).
 
 ## Current state
 
-The repository has one .NET 11 console project, `src/Codepad`. The modules below are the target
-design. [#1] creates them. Update this section when the projects exist.
+[#1] created four projects: `Codepad.Domain`, `Codepad.Application`, `Codepad.Infrastructure` and
+`Codepad.Desktop`. Each module has its own assembly. Domain is empty until [#2]. [#4] creates
+Contracts and Worker. [#19] creates the CLI.
+
+The Desktop app opens one window with a menu, a workspace region and a status region. At startup
+it reads an optional settings file and prepares the data folder. A problem with either does not
+stop the startup. The status region shows it.
 
 ## Modules
 
@@ -67,7 +72,7 @@ Tests check the dependency direction. See [#1] and [#2].
 Shared code does not call OS-specific APIs. Each item below is behind a small adapter with a Linux
 and a Windows implementation:
 
-- Data and config folders. See [#3] and [#13].
+- Data and config folders: `AppFolderLocator` in Infrastructure. See [#1], [#3] and [#13].
 - Worker start, process tree stop and pipes. See [#4] and [#14].
 - Key handling. See [#13].
 - Update install, restart and rollback (`IUpdateInstaller`). See [#17].
@@ -194,8 +199,8 @@ implementation. Record a durable decision as an ADR in `docs/adr/` when it passe
 
 | ID | Question | Owner |
 | --- | --- | --- |
-| V-01 | Which modules share one assembly? | [#1] |
-| V-02 | Which logging library and which UI smoke test tool? | [#1] |
+| V-01 | Which modules share one assembly? Resolved in [#1]: none. Each module has its own project. | [#1] |
+| V-02 | Which logging library and which UI smoke test tool? Resolved in [#1]: `Microsoft.Extensions.Logging` with the built-in JSON console provider only. Avalonia.Headless.XUnit for the UI tests, and a `--smoke-test` launch of the real app in CI. | [#1] |
 | V-03 | Which C# script form: Roslyn scripting or top-level statements? How does the last expression become the result? | [#4] |
 | V-04 | Which IPC transport and framing: standard streams or local pipes, length-prefixed or line-delimited JSON? | [#4] |
 | V-05 | Which process tree stop works on each OS? Which resource limits are not available on one OS? | [#4], [#14] |

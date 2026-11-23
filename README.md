@@ -12,17 +12,34 @@ scripts and tools quickly, offline. Run C# snippets on demand and check JSON as 
 ## Requirements
 
 - .NET SDK 11.0.100 or a later 11.0.1xx patch. `global.json` pins it.
+- Linux x64 or Windows x64. No network connection is needed after the restore.
+- Linux: a desktop session (X11 or Wayland with XWayland). To run the launch smoke test with no
+  display, install Xvfb (`xvfb-run`).
+
+## Projects
+
+| Project | Holds |
+| --- | --- |
+| `src/Codepad.Domain` | The domain model. Empty until #2. |
+| `src/Codepad.Application` | Use cases and the interfaces for their IO needs. |
+| `src/Codepad.Infrastructure` | IO adapters, including the OS-specific folder locator. |
+| `src/Codepad.Desktop` | The Avalonia app and the composition root. |
+| `tests/Codepad.Tests` | Unit tests and the module dependency tests. |
+| `tests/Codepad.Desktop.Tests` | View model tests and headless Avalonia UI tests. |
+
+[ARCHITECTURE.md](ARCHITECTURE.md) states the dependency rules. `ModuleDependencyTests` checks them.
 
 ## Build and run
 
 ```bash
+dotnet restore
 dotnet build
-dotnet run --project src/Codepad
+dotnet run --project src/Codepad.Desktop
 ```
 
 ## Check a change
 
-CI runs the same commands on each pull request:
+CI runs the same commands on Linux and Windows for each pull request:
 
 ```bash
 dotnet restore
@@ -31,7 +48,52 @@ dotnet format --verify-no-changes --no-restore
 dotnet test --configuration Release --no-build
 ```
 
-The build treats each warning as an error.
+The build treats each warning as an error. The code style forbids `var`: write explicit types.
+
+### Launch smoke test
+
+The smoke test starts the real app, opens the window and exits with code 0:
+
+```bash
+# Linux with no display
+xvfb-run -a dotnet src/Codepad.Desktop/bin/Release/net11.0/Codepad.Desktop.dll --smoke-test
+# Windows, or Linux with a display
+dotnet src/Codepad.Desktop/bin/Release/net11.0/Codepad.Desktop.dll --smoke-test
+```
+
+### Screenshots
+
+`dotnet test` saves screenshots of the shell in the light and dark themes, at the minimum and at a
+wide window size, to `tests/Codepad.Desktop.Tests/bin/<Configuration>/net11.0/screenshots/<os>/`.
+CI uploads them as the `screenshots-Linux` and `screenshots-Windows` artifacts. The tests do not
+compare pixels.
+
+## Settings and logs
+
+CodePad reads an optional `settings.json` at startup:
+
+- Linux: `$XDG_CONFIG_HOME/codepad/settings.json` (default `~/.config/codepad/`).
+- Windows: `%LOCALAPPDATA%\CodePad\settings.json`.
+
+```json
+{ "logLevel": "Debug" }
+```
+
+`logLevel` is a `Microsoft.Extensions.Logging` level name. The default is `Information`. If the
+file is not valid, CodePad starts with the default settings and shows a message in the status bar.
+
+The data folder is `$XDG_DATA_HOME/codepad` (default `~/.local/share/codepad/`) on Linux and
+`%LOCALAPPDATA%\CodePad` on Windows. If CodePad cannot write to it, the app starts and shows a
+message in the status bar.
+
+The app writes JSON log events to standard output. The events do not hold source, input, results
+or file paths.
+
+| Event | Level | When |
+| --- | --- | --- |
+| `startup.degraded` | Warning | Startup used a fallback. Fields: `NoticeKind`, `Reason`. |
+| `shell.opened` | Information | The main window opened. Fields: `Version`, `StartupMs`. |
+| `shell.crashed` | Critical | An unhandled exception stopped the app. Field: `ExceptionType`. |
 
 ## Contribute
 

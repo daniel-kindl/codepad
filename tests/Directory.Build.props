@@ -1,0 +1,15 @@
+<Project>
+
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <!--
+    Suppression, scope: the test projects in this folder only.
+    Rule: CS1591 (missing XML comment for a publicly visible member).
+    Reason: xunit requires public test classes and methods (xUnit1000). They are not an API, and an
+    XML comment would only repeat the test name. The rule stays active for all code in src/.
+  -->
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+</Project>
