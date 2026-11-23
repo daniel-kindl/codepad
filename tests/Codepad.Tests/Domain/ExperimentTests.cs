@@ -59,6 +59,29 @@ public sealed class ExperimentTests
     }
 
     [Fact]
+    public void EachEditKeepsTheOtherValues()
+    {
+        // CreatedAt, ModifiedAt and the edit time all differ, so a mix-up between them fails.
+        Experiment original = Experiment.Restore(ExperimentId.New(), OperationKind.Json, "Title", "{}", "in", s_created, s_created.AddMinutes(1), 3);
+
+        Experiment title = original.WithTitle("New", s_edited);
+        Experiment source = original.WithSource("[]", s_edited);
+        Experiment input = original.WithInput("out", s_edited);
+
+        Assert.Equal(("New", "{}", "in"), (title.Title, title.Source, title.Input));
+        Assert.Equal(("Title", "[]", "in"), (source.Title, source.Source, source.Input));
+        Assert.Equal(("Title", "{}", "out"), (input.Title, input.Source, input.Input));
+        Assert.All([title, source, input], edited =>
+        {
+            Assert.Equal(original.Id, edited.Id);
+            Assert.Equal(original.Kind, edited.Kind);
+            Assert.Equal(original.CreatedAt, edited.CreatedAt);
+            Assert.Equal(s_edited, edited.ModifiedAt);
+            Assert.Equal(4, edited.Revision);
+        });
+    }
+
+    [Fact]
     public void EditToTheSameValueKeepsTheRevision()
     {
         Experiment original = NewExperiment();
