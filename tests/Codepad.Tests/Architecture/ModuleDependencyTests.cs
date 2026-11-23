@@ -39,6 +39,16 @@ public sealed class ModuleDependencyTests
         { "Codepad.Worker", "Codepad.Desktop" },
         { "Codepad.Worker", "Avalonia" },
         { "Codepad.Worker", "Microsoft.Data.Sqlite" },
+        { "Codepad.Domain", "Codepad.Language" },
+        { "Codepad.Application", "Codepad.Language" },
+        { "Codepad.Infrastructure", "Codepad.Language" },
+        { "Codepad.Contracts", "Codepad.Language" },
+        { "Codepad.Worker", "Codepad.Language" },
+        { "Codepad.Language", "Codepad.Desktop" },
+        { "Codepad.Language", "Codepad.Infrastructure" },
+        { "Codepad.Language", "Codepad.Worker" },
+        { "Codepad.Language", "Avalonia" },
+        { "Codepad.Language", "Microsoft.Data.Sqlite" },
     };
 
     [Theory]
@@ -76,6 +86,16 @@ public sealed class ModuleDependencyTests
 
         Assert.Contains("Codepad.Contracts", references);
         Assert.Contains("Microsoft.CodeAnalysis.CSharp.Scripting", references);
+    }
+
+    [Fact]
+    public void LanguageReferencesRoslynAndApplication()
+    {
+        // Proves that the reflection sees the Language references, so the forbidden checks are not empty passes.
+        IEnumerable<string?> references = Assembly.Load("Codepad.Language").GetReferencedAssemblies().Select(reference => reference.Name);
+
+        Assert.Contains("Codepad.Application", references);
+        Assert.Contains("Microsoft.CodeAnalysis.CSharp", references);
     }
 
     [Fact]

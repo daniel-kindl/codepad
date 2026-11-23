@@ -11,6 +11,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Codepad.Application\Codepad.Application.csproj" />
     <ProjectReference Include="..\Codepad.Infrastructure\Codepad.Infrastructure.csproj" />
+    <ProjectReference Include="..\Codepad.Language\Codepad.Language.csproj" />
     <!-- The app starts the worker as a child process. The reference copies the worker and Roslyn next to the app. The app never loads the worker assembly. -->
     <ProjectReference Include="..\Codepad.Worker\Codepad.Worker.csproj" />
   </ItemGroup>
@@ -21,6 +22,7 @@
 
   <ItemGroup>
     <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.AvaloniaEdit" />
     <PackageReference Include="Avalonia.Desktop" />
     <PackageReference Include="Avalonia.Fonts.Inter" />
     <PackageReference Include="Avalonia.Themes.Fluent" />

@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="using:Codepad.Desktop.Shell"
+        xmlns:editor="using:Codepad.Desktop.Editor"
         x:Class="Codepad.Desktop.Shell.MainWindow"
         x:DataType="shell:MainWindowViewModel"
         Title="{Binding Title}"
@@ -27,11 +28,7 @@
     </Border>
 
     <Grid AutomationProperties.Name="Workspace">
-      <StackPanel Classes="empty-state">
-        <TextBlock Classes="empty-title" Text="Nothing open yet" />
-        <TextBlock Classes="empty-body"
-                   Text="Experiments will open here. You can't create or run them in this build yet." />
-      </StackPanel>
+      <editor:CSharpEditorView DataContext="{Binding Editor}" />
     </Grid>
 
   </DockPanel>

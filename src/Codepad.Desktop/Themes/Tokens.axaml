@@ -6,6 +6,8 @@
     Measured contrast (WCAG 2.2): light text/workspace 17.2:1, muted/workspace 6.5:1,
     text/status 15.5:1, warning/status 6.0:1. Dark text/workspace 17.0:1, muted/workspace 7.6:1,
     text/status 15.1:1, warning/status 9.8:1. The borders are decorative.
+    Editor colors on the workspace background (light / dark): keyword 11.9 / 8.2, comment 6.0 / 8.0, string 7.8 / 8.7,
+    number 6.4 / 10.0, type 6.8 / 9.6, punctuation 6.5 / 7.6, error 6.5 / 7.5, warning 6.7 / 11.1.
   -->
   <ResourceDictionary.ThemeDictionaries>
     <ResourceDictionary x:Key="Light">
@@ -15,6 +17,15 @@
       <SolidColorBrush x:Key="ShellTextBrush" Color="#1B1B1B" />
       <SolidColorBrush x:Key="ShellMutedTextBrush" Color="#5E5E5E" />
       <SolidColorBrush x:Key="ShellWarningTextBrush" Color="#8F4A00" />
+      <SolidColorBrush x:Key="EditorKeywordBrush" Color="#0000C0" />
+      <SolidColorBrush x:Key="EditorCommentBrush" Color="#4F6B3A" />
+      <SolidColorBrush x:Key="EditorStringBrush" Color="#A31515" />
+      <SolidColorBrush x:Key="EditorNumberBrush" Color="#0B6B5E" />
+      <SolidColorBrush x:Key="EditorTypeBrush" Color="#2B5F8A" />
+      <SolidColorBrush x:Key="EditorPunctuationBrush" Color="#5E5E5E" />
+      <SolidColorBrush x:Key="EditorErrorBrush" Color="#B3261E" />
+      <SolidColorBrush x:Key="EditorWarningBrush" Color="#8F4A00" />
+      <SolidColorBrush x:Key="EditorInfoBrush" Color="#5E5E5E" />
     </ResourceDictionary>
     <ResourceDictionary x:Key="Dark">
       <SolidColorBrush x:Key="ShellWorkspaceBackgroundBrush" Color="#1C1C1C" />
@@ -23,10 +34,21 @@
       <SolidColorBrush x:Key="ShellTextBrush" Color="#FFFFFF" />
       <SolidColorBrush x:Key="ShellMutedTextBrush" Color="#ADADAD" />
       <SolidColorBrush x:Key="ShellWarningTextBrush" Color="#FFC857" />
+      <SolidColorBrush x:Key="EditorKeywordBrush" Color="#7CB7FF" />
+      <SolidColorBrush x:Key="EditorCommentBrush" Color="#8DBF7A" />
+      <SolidColorBrush x:Key="EditorStringBrush" Color="#F0A88F" />
+      <SolidColorBrush x:Key="EditorNumberBrush" Color="#7FD6C5" />
+      <SolidColorBrush x:Key="EditorTypeBrush" Color="#6FD0E8" />
+      <SolidColorBrush x:Key="EditorPunctuationBrush" Color="#ADADAD" />
+      <SolidColorBrush x:Key="EditorErrorBrush" Color="#FF8A80" />
+      <SolidColorBrush x:Key="EditorWarningBrush" Color="#FFC857" />
+      <SolidColorBrush x:Key="EditorInfoBrush" Color="#ADADAD" />
     </ResourceDictionary>
   </ResourceDictionary.ThemeDictionaries>
 
   <x:Double x:Key="ShellBodyFontSize">14</x:Double>
+  <x:Double x:Key="EditorFontSize">14</x:Double>
+  <FontFamily x:Key="EditorFontFamily">Cascadia Code, Cascadia Mono, Consolas, Menlo, DejaVu Sans Mono, Liberation Mono, monospace</FontFamily>
   <x:Double x:Key="ShellTitleFontSize">20</x:Double>
   <Thickness x:Key="ShellStatusPadding">12,6</Thickness>
 
