@@ -42,6 +42,7 @@ public sealed class JsonToolViewModelTests
         Assert.Equal("[1,\n 2,]", fixture.Model.Text);
         Assert.StartsWith("Invalid JSON at line 2, column 4", fixture.Model.SummaryText, StringComparison.Ordinal);
         Assert.True(fixture.Model.HasProblem);
+        Assert.Contains("last valid", fixture.Model.FormattedNote, StringComparison.Ordinal);
         Assert.Contains("2", fixture.Model.FormattedText, StringComparison.Ordinal);
         Assert.True(fixture.Model.Results.IsShowingPrevious);
         RunDiagnosticRow row = Assert.Single(fixture.Model.Results.Diagnostics);
@@ -142,6 +143,8 @@ public sealed class JsonToolViewModelTests
         fixture.Time.Advance(_debounce);
         await fixture.WaitForUiAsync(() => fixture.Failures.Count == 1);
 
+        Assert.True(fixture.Model.HasProblem);
+        Assert.Equal(string.Empty, fixture.Model.FormattedText);
         Assert.Equal([nameof(InvalidOperationException)], fixture.Failures);
         Assert.Equal(JsonToolViewModel.UNAVAILABLE_TEXT, fixture.Model.SummaryText);
     }

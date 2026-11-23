@@ -21,9 +21,13 @@
                AutomationProperties.Name="JSON input" />
       <GridSplitter Grid.Column="1" Width="4" ResizeDirection="Columns" Focusable="False"
                     Background="{DynamicResource ShellBorderBrush}" AutomationProperties.Name="Resize the formatted preview" />
+      <DockPanel Grid.Column="2">
+        <TextBlock DockPanel.Dock="Top" Classes="notice"
+                   IsVisible="{Binding FormattedNote, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                   Text="{Binding FormattedNote}"
+                   AutomationProperties.Name="Formatted JSON notice" />
       <TextBox x:Name="FormattedBox"
-               Grid.Column="2"
-               IsReadOnly="True"
+                              IsReadOnly="True"
                AcceptsReturn="True"
                TextWrapping="NoWrap"
                FontFamily="{StaticResource EditorFontFamily}"
@@ -32,6 +36,7 @@
                ScrollViewer.VerticalScrollBarVisibility="Auto"
                Text="{Binding FormattedText, Mode=OneWay}"
                AutomationProperties.Name="Formatted JSON" />
+      </DockPanel>
     </Grid>
 
     <Border Grid.Row="1" Classes="status-region">

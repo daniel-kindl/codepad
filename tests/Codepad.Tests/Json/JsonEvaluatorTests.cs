@@ -148,4 +148,24 @@ public sealed class JsonEvaluatorTests
         Assert.Equal(["a"], Assert.IsType<ObjectNode>(result.Tree).Properties.Select(property => property.Name));
         Assert.Contains("\"a\": 2", result.Formatted, StringComparison.Ordinal);
     }
+
+    [Theory]
+    [InlineData("{\"a\":\"#\"}", 1, 7)]
+    [InlineData("[1,\n\"x#\"]", 2, 3)]
+    [InlineData("#", 1, 1)]
+    public void ALoneSurrogateIsAResultWithAPlaceNotAnException(string template, int line, int column)
+    {
+        // The test runner cannot carry a lone surrogate in its data, so the test puts it in here.
+        JsonEvaluation result = evaluator.Evaluate(template.Replace('#', '\uD800'));
+
+        Assert.False(result.IsValid);
+        Assert.Equal("JSON_INVALID_TEXT", result.Problem?.Code);
+        Assert.Equal(new SourceLocation(line, column), result.Problem?.Location);
+    }
+
+    [Fact]
+    public void AValidSurrogatePairIsFine()
+    {
+        Assert.True(evaluator.Evaluate("[\"\U0001F600\"]").IsValid);
+    }
 }

@@ -82,8 +82,15 @@ public sealed class JsonToolViewModel : INotifyPropertyChanged, IDisposable
     public string FormattedText
     {
         get => formattedText;
-        private set => Set(ref formattedText, value);
+        private set
+        {
+            Set(ref formattedText, value);
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(FormattedNote)));
+        }
     }
+
+    /// <summary>Gets a notice for the formatted text. It is not empty when the text is from an earlier valid version.</summary>
+    public string FormattedNote => HasProblem && formattedText.Length > 0 ? "Not valid now. This is the last valid version." : string.Empty;
 
     /// <summary>Gets a one-line summary. For an invalid document it names the line and the column.</summary>
     public string SummaryText
@@ -96,7 +103,11 @@ public sealed class JsonToolViewModel : INotifyPropertyChanged, IDisposable
     public bool HasProblem
     {
         get => hasProblem;
-        private set => Set(ref hasProblem, value);
+        private set
+        {
+            Set(ref hasProblem, value);
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(FormattedNote)));
+        }
     }
 
     /// <summary>Opens another document. It drops the result of the old one and cancels its evaluation.</summary>
@@ -206,7 +217,10 @@ public sealed class JsonToolViewModel : INotifyPropertyChanged, IDisposable
             return;
         }
 
+        FormattedText = string.Empty;
+        HasProblem = true;
         SummaryText = UNAVAILABLE_TEXT;
+        Results.ClearPreview("Check failed", UNAVAILABLE_TEXT);
         reportFailure(reason);
     }
 

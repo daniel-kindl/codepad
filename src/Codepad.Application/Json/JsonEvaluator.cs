@@ -57,6 +57,12 @@ public sealed class JsonEvaluator : IJsonEvaluator
             return Fail("JSON_EMPTY", "Type or paste JSON to see it formatted.", null);
         }
 
+        // The parser cannot read a lone surrogate. It throws an ArgumentException, so the check runs first and gives a place.
+        if (FindLoneSurrogate(text) is SourceLocation broken)
+        {
+            return Fail("JSON_INVALID_TEXT", "The text has a character that is not valid Unicode, for example half of an emoji. Delete it.", broken);
+        }
+
         // A string that has more chars than the limit has more bytes too, so the cheap check runs first.
         if (text.Length > limits.MaxBytes || Encoding.UTF8.GetByteCount(text) > limits.MaxBytes)
         {
@@ -72,6 +78,39 @@ public sealed class JsonEvaluator : IJsonEvaluator
         {
             return Describe(exception, text);
         }
+    }
+
+    private static SourceLocation? FindLoneSurrogate(string text)
+    {
+        int line = 1;
+        int column = 1;
+        for (int index = 0; index < text.Length; index++)
+        {
+            char current = text[index];
+            if (char.IsHighSurrogate(current) && index + 1 < text.Length && char.IsLowSurrogate(text[index + 1]))
+            {
+                index++;
+                column += 2;
+                continue;
+            }
+
+            if (char.IsSurrogate(current))
+            {
+                return new SourceLocation(line, column);
+            }
+
+            if (current == '\n')
+            {
+                line++;
+                column = 1;
+            }
+            else
+            {
+                column++;
+            }
+        }
+
+        return null;
     }
 
     private static string Format(JsonElement root)
