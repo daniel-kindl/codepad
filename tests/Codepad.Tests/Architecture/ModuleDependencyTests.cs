@@ -25,6 +25,20 @@ public sealed class ModuleDependencyTests
         { "Codepad.Application", "Microsoft.Data.Sqlite" },
         { "Codepad.Infrastructure", "Codepad.Desktop" },
         { "Codepad.Infrastructure", "Avalonia" },
+        { "Codepad.Application", "Microsoft.CodeAnalysis" },
+        { "Codepad.Infrastructure", "Microsoft.CodeAnalysis" },
+        { "Codepad.Contracts", "Codepad.Application" },
+        { "Codepad.Contracts", "Codepad.Infrastructure" },
+        { "Codepad.Contracts", "Codepad.Desktop" },
+        { "Codepad.Contracts", "Codepad.Worker" },
+        { "Codepad.Contracts", "Avalonia" },
+        { "Codepad.Contracts", "Microsoft.Data.Sqlite" },
+        { "Codepad.Contracts", "Microsoft.CodeAnalysis" },
+        { "Codepad.Worker", "Codepad.Application" },
+        { "Codepad.Worker", "Codepad.Infrastructure" },
+        { "Codepad.Worker", "Codepad.Desktop" },
+        { "Codepad.Worker", "Avalonia" },
+        { "Codepad.Worker", "Microsoft.Data.Sqlite" },
     };
 
     [Theory]
@@ -43,6 +57,25 @@ public sealed class ModuleDependencyTests
         IEnumerable<string?> references = Assembly.Load("Codepad.Infrastructure").GetReferencedAssemblies().Select(reference => reference.Name);
 
         Assert.Contains("Codepad.Application", references);
+    }
+
+    [Fact]
+    public void ContractsReferenceOnlyDomainAndTheBaseClassLibrary()
+    {
+        // An allowlist: the wire messages carry Domain types and need no other package.
+        IEnumerable<string> references = Assembly.Load("Codepad.Contracts").GetReferencedAssemblies().Select(reference => reference.Name ?? string.Empty);
+
+        Assert.All(references, name => Assert.True(name == "Codepad.Domain" || name == "System" || name.StartsWith("System.", StringComparison.Ordinal), $"Codepad.Contracts references {name}."));
+    }
+
+    [Fact]
+    public void WorkerReferencesRoslynAndContracts()
+    {
+        // Proves that the reflection sees the Worker references, so the forbidden checks are not empty passes.
+        IEnumerable<string?> references = Assembly.Load("Codepad.Worker").GetReferencedAssemblies().Select(reference => reference.Name);
+
+        Assert.Contains("Codepad.Contracts", references);
+        Assert.Contains("Microsoft.CodeAnalysis.CSharp.Scripting", references);
     }
 
     [Fact]

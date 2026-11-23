@@ -10,8 +10,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Codepad.Domain\Codepad.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Codepad.Contracts\Codepad.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Codepad.Application\Codepad.Application.csproj" />
     <ProjectReference Include="..\..\src\Codepad.Infrastructure\Codepad.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Codepad.Worker\Codepad.Worker.csproj" />
   </ItemGroup>
 
   <ItemGroup>

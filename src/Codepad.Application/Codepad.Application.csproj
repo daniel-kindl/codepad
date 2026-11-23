@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Codepad.Domain\Codepad.Domain.csproj" />
+    <ProjectReference Include="..\Codepad.Contracts\Codepad.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

@@ -59,6 +59,13 @@
       "codepad.application": {
         "type": "Project",
         "dependencies": {
+          "Codepad.Contracts": "[0.1.0, )",
+          "Codepad.Domain": "[0.1.0, )"
+        }
+      },
+      "codepad.contracts": {
+        "type": "Project",
+        "dependencies": {
           "Codepad.Domain": "[0.1.0, )"
         }
       },

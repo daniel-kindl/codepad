@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The versioned messages between the app and the worker. It uses Domain types and no IO. -->
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Codepad.Domain\Codepad.Domain.csproj" />
+  </ItemGroup>
+
+</Project>
