@@ -66,5 +66,10 @@ internal static class SqliteMigrations
 
             CREATE INDEX ix_execution_history_experiment ON execution_history (experiment_id, completed_at DESC, id DESC);
             """),
+
+        // Tabs (#10). The session is two IDs and an order. It lives in the settings table under one key, so the empty reserved table has no use.
+        new Migration(3, """
+            DROP TABLE tab_session;
+            """),
     ];
 }

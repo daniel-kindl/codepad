@@ -1,0 +1,21 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:editor="using:Codepad.Desktop.Editor"
+             xmlns:results="using:Codepad.Desktop.Results"
+             xmlns:workspace="using:Codepad.Desktop.Workspace"
+             x:Class="Codepad.Desktop.Workspace.CSharpTabView"
+             x:DataType="workspace:CSharpTabViewModel">
+
+  <Grid AutomationProperties.Name="C# experiment">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="3*" MinHeight="140" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="2*" MinHeight="120" />
+    </Grid.RowDefinitions>
+    <editor:CSharpEditorView x:Name="EditorView" Grid.Row="0" DataContext="{Binding Editor}" />
+    <GridSplitter Grid.Row="1" Height="4" HorizontalAlignment="Stretch" ResizeDirection="Rows" Focusable="False"
+                  Background="{DynamicResource ShellBorderBrush}" AutomationProperties.Name="Resize the result panel" />
+    <results:ResultsView Grid.Row="2" DataContext="{Binding Results}" />
+  </Grid>
+
+</UserControl>

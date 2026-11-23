@@ -1,0 +1,43 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:workspace="using:Codepad.Desktop.Workspace"
+             xmlns:json="using:Codepad.Desktop.Json"
+             x:Class="Codepad.Desktop.Workspace.WorkspaceView"
+             x:DataType="workspace:WorkspaceViewModel">
+
+  <DockPanel AutomationProperties.Name="Experiments">
+
+    <workspace:TabStripView DockPanel.Dock="Top" DataContext="{Binding}" />
+
+    <Grid>
+      <!-- Each open tab keeps its own view. A hidden view keeps its text, caret and scroll position. -->
+      <ItemsControl ItemsSource="{Binding Tabs}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <Grid />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.Styles>
+          <Style Selector="ItemsControl > ContentPresenter" x:DataType="workspace:ExperimentTabViewModel">
+            <Setter Property="IsVisible" Value="{Binding IsActive}" />
+          </Style>
+        </ItemsControl.Styles>
+        <ItemsControl.DataTemplates>
+          <DataTemplate DataType="workspace:CSharpTabViewModel">
+            <workspace:CSharpTabView />
+          </DataTemplate>
+          <DataTemplate DataType="workspace:JsonTabViewModel">
+            <json:JsonToolView DataContext="{Binding Tool}" />
+          </DataTemplate>
+        </ItemsControl.DataTemplates>
+      </ItemsControl>
+
+      <StackPanel Classes="empty-state" IsVisible="{Binding !HasTabs}">
+        <TextBlock Classes="empty-title" Text="No experiment is open" />
+        <TextBlock Classes="empty-body" Text="Use + C# or + JSON in the tab strip to start one." />
+      </StackPanel>
+    </Grid>
+
+  </DockPanel>
+
+</UserControl>

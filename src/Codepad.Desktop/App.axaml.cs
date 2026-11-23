@@ -37,6 +37,13 @@ public sealed partial class App : Avalonia.Application
     {
         if (options is not null && ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            // The tabs open before the window does. The restore starts here, after the UI thread owns its dispatcher: a
+            // timer thread that touched the dispatcher earlier would take it. Task.Run keeps the wait free of the UI context.
+            if (options.ViewModel.Workspace is not null)
+            {
+                Task.Run(() => options.ViewModel.Workspace.RestoreAsync()).GetAwaiter().GetResult();
+            }
+
             MainWindow window = new MainWindow { DataContext = options.ViewModel };
             window.Opened += (_, _) =>
             {

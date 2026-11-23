@@ -33,10 +33,13 @@ public sealed class SqliteMigrationTests : IDisposable
         temp.Open();
 
         Assert.Equal(SqliteMigrations.All[^1].Version, Scalar("PRAGMA user_version;"));
-        foreach (string table in new[] { "experiments", "settings", "execution_history", "tab_session" })
+        foreach (string table in new[] { "experiments", "settings", "execution_history" })
         {
             Assert.Equal(1, Scalar($"SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = '{table}';"));
         }
+
+        // Step 3 removed the reserved table. The session is a setting.
+        Assert.Equal(0, Scalar("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'tab_session';"));
     }
 
     [Fact]
@@ -153,6 +156,26 @@ public sealed class SqliteMigrationTests : IDisposable
 
         Assert.Equal(2, Scalar("PRAGMA user_version;"));
         Assert.Equal(10, Scalar("SELECT x + y FROM a;"));
+    }
+
+    [Fact]
+    public void UpgradingADatabaseWithDataToTheLatestStepKeepsExperimentsHistoryAndSettings()
+    {
+        Migration[] released = [.. SqliteMigrations.All.Where(migration => migration.Version <= 2)];
+        new SqliteDatabase(temp.Path, released, null).Migrate();
+        using (SqliteConnection connection = temp.RawConnection())
+        {
+            using SqliteCommand command = connection.CreateCommand();
+            command.CommandText = "INSERT INTO settings (key, value) VALUES ('keep', 'me');";
+            command.ExecuteNonQuery();
+        }
+
+        temp.Open();
+
+        Assert.Equal(SqliteMigrations.All[^1].Version, Scalar("PRAGMA user_version;"));
+        Assert.Equal(0, Scalar("SELECT COUNT(*) FROM sqlite_master WHERE name = 'tab_session';"));
+        Assert.Equal(1, Scalar("SELECT COUNT(*) FROM settings WHERE key = 'keep';"));
+        Assert.Equal(1, Scalar("SELECT COUNT(*) FROM sqlite_master WHERE name = 'execution_history';"));
     }
 
     [Fact]

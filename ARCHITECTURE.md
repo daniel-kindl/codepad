@@ -12,11 +12,13 @@ For the product scope, see [PRODUCT.md](PRODUCT.md).
 `Codepad.Desktop`. Each module has its own assembly. [#2] added the domain model. See
 [Domain model](#domain-model). [#3] added storage. See
 [Storage and retention](#storage-and-retention). [#4] added Contracts and Worker. See
-[C# script semantics](#c-script-semantics) and [Worker protocol](#worker-protocol). [#5] added the C# editor, [#6] added completion and [#7] added the result panel. See [C# editor](#c-editor). [#19] creates
+[C# script semantics](#c-script-semantics) and [Worker protocol](#worker-protocol). [#5] added the C# editor, [#6] added completion and [#7] added the result panel. See [C# editor](#c-editor). [#8] added run history, [#9] added live JSON and [#10] added tabs. [#19] creates
 the CLI.
 
 The Desktop app opens one window with a menu, a workspace region and a status region. The workspace
-holds the C# editor with its diagnostics list. No experiment is open yet, so the editor text is not saved. At startup
+holds a tab strip. Each tab is a C# experiment (editor, diagnostics and result panel) or a live JSON
+experiment, and autosave stores it. See [Tabs and session](#tabs-and-session). When the data folder or the
+database is not usable, the workspace holds one C# editor that does not save. At startup
 it reads an optional settings file and prepares the data folder. A problem with either does not
 stop the startup. The status region shows it.
 
@@ -335,6 +337,40 @@ failure without a response is a Warning. The supervisor never logs source, outpu
 - **Not connected yet.** No Run command exists yet, so the panel shows "No run yet". A later issue connects
   `ResultsViewModel.Show` to a run. The history panel ([#8]) already calls it for a saved run.
 
+## Tabs and session
+
+[#10] adds the tabs.
+
+- **A tab is an experiment ID.** `TabSet` (Application) is an immutable ordered list of IDs and the active ID.
+  It cannot hold one ID twice. Open on an open ID only activates it. Close removes the ID from the list
+  and makes the right neighbour active, or the left one for the last tab. It never deletes the experiment.
+- **The session is separate from the experiments.** `SessionStore` writes one value, `session.tabs`, to the
+  `settings` table: a version, the IDs in tab order and the active ID. It has no path and no source, so it
+  is the same on Linux and Windows. Data that is damaged, has another version or names an unknown ID gives
+  the valid part, or an empty set. It never throws for bad data.
+- **Restore.** The app reads the experiments, drops the IDs that no longer exist, and opens the tabs in the
+  stored order. When no tab remains, it opens one new C# experiment.
+  The restore runs on a thread-pool thread after Avalonia starts and before the window opens. The restore must
+  not touch `Dispatcher.UIThread` before the UI thread owns it.
+- **Each tab owns its autosave session.** The text is in the editor of the tab. The caret, the selection and the
+  scroll position are in the view of the tab. The app keeps one view for each open tab and hides the views of
+  the other tabs, so switching changes none of them. They are not saved: after a restart, the caret is at the start.
+- **A failed save stays visible.** The tab shows the word "Save failed" next to its title, and the status
+  region shows the reason. The tab does not become clean. Closing a tab or the window saves first, and it
+  repeats the save until no edit is pending. When the save fails, the first close request keeps the tab open and
+  says so. A later request, at least one second after the warning and for the same buffer, closes it and discards
+  the unsaved text. A new edit starts the warning again. Two requests at once, such as a double click, count as one.
+  A window close during an OS shutdown or an app shutdown does not wait for the save.
+- **A failed read keeps the stored session.** When the app cannot read the experiments at startup, it does not
+  write the session in that run. The stored tab list stays for the next start. A new experiment is saved when it opens, so the session lists only experiments that exist.
+- **Keyboard.** Ctrl+Tab and Ctrl+Shift+Tab cycle the tabs. Ctrl+W closes the active tab. Ctrl+Shift+PageUp and
+  Ctrl+Shift+PageDown move it. The mouse can drag a tab, use the close button or use the context menu (move
+  left, move right, close). The tab strip scrolls when the tabs do not fit.
+- **Without storage** (the data folder or the database is not usable), the window shows one C# editor that does
+  not save, as before.
+- **Not in this scope.** The experiment library (#11), the command palette (#12) and the shortcut settings (#13)
+  add other ways to open and create tabs. Run is not connected to a tab yet.
+
 ## Run history
 
 [#8] stores each completed C# run as one immutable record.
@@ -407,8 +443,8 @@ The release documentation states this limit. See [#15].
   keeps the edited buffer after a failure. It does not retry by itself: the next edit or a Retry
   tries again. The storage failure reasons are `disk_full`, `read_only`, `busy`, `io_error`,
   `corrupt`, `cannot_open`, `schema_too_new` and `migration_failed`. A reason never holds source or a path.
-- The table `tab_session` is reserved. [#10] adds its columns. Schema step 2 gave `execution_history` its
-  columns ([#8]). See "Run history".
+- Schema step 2 gave `execution_history` its columns ([#8]). See "Run history". Schema step 3 removed the
+  empty reserved table `tab_session`: the tab session is one value in the `settings` table. See "Tabs and session".
 - Each write is a transaction. The UI shows dirty, saving, saved and error states. The app does not
   say "saved" before the commit is durable.
 - Each experiment has a revision number. An older write cannot replace a newer revision.

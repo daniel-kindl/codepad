@@ -4,6 +4,7 @@
         xmlns:editor="using:Codepad.Desktop.Editor"
         xmlns:results="using:Codepad.Desktop.Results"
         xmlns:history="using:Codepad.Desktop.History"
+        xmlns:workspace="using:Codepad.Desktop.Workspace"
         x:Class="Codepad.Desktop.Shell.MainWindow"
         x:DataType="shell:MainWindowViewModel"
         Title="{Binding Title}"
@@ -16,17 +17,38 @@
 
     <Menu DockPanel.Dock="Top" AutomationProperties.Name="Main menu">
       <MenuItem Header="_File" AutomationProperties.Name="File">
+        <MenuItem Header="New _C# experiment" IsEnabled="{Binding HasWorkspace}" Click="OnNewCSharpClick" AutomationProperties.Name="New C# experiment" />
+        <MenuItem Header="New _JSON experiment" IsEnabled="{Binding HasWorkspace}" Click="OnNewJsonClick" AutomationProperties.Name="New JSON experiment" />
+        <MenuItem Header="Close _tab" InputGesture="Ctrl+W" IsEnabled="{Binding HasWorkspace}" Click="OnCloseTabClick" AutomationProperties.Name="Close tab" />
+        <Separator />
+        <MenuItem Header="_Next tab" InputGesture="Ctrl+Tab" IsEnabled="{Binding HasWorkspace}" Click="OnNextTabClick" AutomationProperties.Name="Next tab" />
+        <MenuItem Header="_Previous tab" InputGesture="Ctrl+Shift+Tab" IsEnabled="{Binding HasWorkspace}" Click="OnPreviousTabClick" AutomationProperties.Name="Previous tab" />
+        <Separator />
         <MenuItem Header="E_xit" AutomationProperties.Name="Exit" Click="OnExitClick" />
       </MenuItem>
     </Menu>
 
     <Border DockPanel.Dock="Bottom" Classes="status-region">
-      <TextBlock Classes="status"
-                 Classes.warning="{Binding HasWarning}"
-                 Text="{Binding StatusText}"
-                 TextWrapping="Wrap"
-                 AutomationProperties.Name="Status"
-                 AutomationProperties.LiveSetting="Polite" />
+      <StackPanel Spacing="2">
+        <TextBlock Classes="status"
+                   Classes.warning="{Binding HasWarning}"
+                   Text="{Binding StatusText}"
+                   TextWrapping="Wrap"
+                   AutomationProperties.Name="Status"
+                   AutomationProperties.LiveSetting="Polite" />
+        <TextBlock Classes="status"
+                   Text="{Binding Workspace.ActiveSaveText}"
+                   IsVisible="{Binding Workspace.ActiveSaveText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                   TextWrapping="Wrap"
+                   AutomationProperties.Name="Save status"
+                   AutomationProperties.LiveSetting="Polite" />
+        <TextBlock Classes="status warning"
+                   Text="{Binding Workspace.Notice}"
+                   IsVisible="{Binding Workspace.Notice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                   TextWrapping="Wrap"
+                   AutomationProperties.Name="Tab notice"
+                   AutomationProperties.LiveSetting="Assertive" />
+      </StackPanel>
     </Border>
 
     <Border DockPanel.Dock="Right" Width="300" IsVisible="{Binding HasHistory}"
@@ -34,17 +56,23 @@
       <history:RunHistoryView DataContext="{Binding History}" />
     </Border>
 
-    <Grid AutomationProperties.Name="Workspace">
-      <Grid.RowDefinitions>
-        <RowDefinition Height="3*" MinHeight="140" />
-        <RowDefinition Height="Auto" />
-        <RowDefinition Height="2*" MinHeight="120" />
-      </Grid.RowDefinitions>
-      <editor:CSharpEditorView Grid.Row="0" DataContext="{Binding Editor}" />
-      <GridSplitter Grid.Row="1" Height="4" HorizontalAlignment="Stretch" ResizeDirection="Rows" Focusable="False"
-                    Background="{DynamicResource ShellBorderBrush}" AutomationProperties.Name="Resize the result panel" />
-      <results:ResultsView Grid.Row="2" DataContext="{Binding Results}" />
-    </Grid>
+    <Panel>
+      <Border IsVisible="{Binding HasWorkspace}">
+        <workspace:WorkspaceView DataContext="{Binding Workspace}" />
+      </Border>
+
+      <Grid AutomationProperties.Name="Workspace" IsVisible="{Binding HasNoWorkspace}">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="3*" MinHeight="140" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="2*" MinHeight="120" />
+        </Grid.RowDefinitions>
+        <editor:CSharpEditorView Grid.Row="0" DataContext="{Binding Editor}" />
+        <GridSplitter Grid.Row="1" Height="4" HorizontalAlignment="Stretch" ResizeDirection="Rows" Focusable="False"
+                      Background="{DynamicResource ShellBorderBrush}" AutomationProperties.Name="Resize the result panel" />
+        <results:ResultsView Grid.Row="2" DataContext="{Binding Results}" />
+      </Grid>
+    </Panel>
 
   </DockPanel>
 
