@@ -52,11 +52,12 @@ The build treats each warning as an error. The code style forbids `var`: write e
 
 ### Launch smoke test
 
-The smoke test starts the real app, opens the window and exits with code 0:
+The smoke test starts the real app, opens the window and exits with code 0. CI runs it with no
+network access: in a network namespace on Linux, and with a firewall rule on Windows. To run it:
 
 ```bash
-# Linux with no display
-xvfb-run -a dotnet src/Codepad.Desktop/bin/Release/net11.0/Codepad.Desktop.dll --smoke-test
+# Linux with no display and no network
+unshare -rn xvfb-run -a dotnet src/Codepad.Desktop/bin/Release/net11.0/Codepad.Desktop.dll --smoke-test
 # Windows, or Linux with a display
 dotnet src/Codepad.Desktop/bin/Release/net11.0/Codepad.Desktop.dll --smoke-test
 ```
@@ -87,13 +88,15 @@ The data folder is `$XDG_DATA_HOME/codepad` (default `~/.local/share/codepad/`) 
 message in the status bar.
 
 The app writes JSON log events to standard output. The events do not hold source, input, results
-or file paths.
+or file paths. Each JSON line has the numeric `EventId`. The output does not hold the event name.
+The name is the stable label in the code (`[LoggerMessage]` in `src/Codepad.Desktop/Program.cs`)
+and in this table.
 
-| Event | Level | When |
-| --- | --- | --- |
-| `startup.degraded` | Warning | Startup used a fallback. Fields: `NoticeKind`, `Reason`. |
-| `shell.opened` | Information | The main window opened. Fields: `Version`, `StartupMs`. |
-| `shell.crashed` | Critical | An unhandled exception stopped the app. Field: `ExceptionType`. |
+| `EventId` | Name | Level | When |
+| --- | --- | --- | --- |
+| 1 | `startup.degraded` | Warning | Startup used a fallback. Fields: `NoticeKind`, `Reason`. |
+| 2 | `shell.opened` | Information | The main window opened. Fields: `Version`, `StartupMs`. |
+| 3 | `shell.crashed` | Critical | An unhandled exception stopped the app. Field: `ExceptionType`. |
 
 ## Contribute
 

@@ -12,7 +12,7 @@
   <DockPanel>
 
     <Menu DockPanel.Dock="Top" AutomationProperties.Name="Main menu">
-      <MenuItem Header="_File">
+      <MenuItem Header="_File" AutomationProperties.Name="File">
         <MenuItem Header="E_xit" AutomationProperties.Name="Exit" Click="OnExitClick" />
       </MenuItem>
     </Menu>

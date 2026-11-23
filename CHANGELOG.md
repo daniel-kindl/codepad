@@ -17,7 +17,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The
 - Optional `settings.json` with a `logLevel` setting. A settings file that is not valid or a data
   folder that is not usable shows a message in the status region. The app still starts.
 - JSON console log events `startup.degraded`, `shell.opened` and `shell.crashed`.
-- Headless UI tests with screenshots, and a `--smoke-test` launch of the real app.
+- Headless UI tests with screenshots and a keyboard walk-through, and a `--smoke-test` launch of
+  the real app with no network access.
 - CI runs the build, format, test and launch checks on Linux and Windows.
 - Code style: explicit types only. The build rejects `var`.
 - .NET 11 solution with warnings as errors, analyzers, naming rules and Allman braces.

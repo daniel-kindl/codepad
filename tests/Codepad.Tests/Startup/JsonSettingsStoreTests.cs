@@ -42,6 +42,9 @@ public sealed class JsonSettingsStoreTests : IDisposable
     [InlineData("""{ "logLevel": 2 }""", "invalid_log_level")]
     [InlineData("""{ "logLevel": "3" }""", "invalid_log_level")]
     [InlineData("""{ "logLevel": null }""", "invalid_log_level")]
+    [InlineData("""{ "logLevel": "Debug, Information" }""", "invalid_log_level")]
+    [InlineData("""{ "logLevel": " Debug" }""", "invalid_log_level")]
+    [InlineData("""{ "logLevel": "" }""", "invalid_log_level")]
     public void ReadWithInvalidContentReturnsUnusableWithAStableReason(string json, string expectedReason)
     {
         File.WriteAllText(FilePath, json);

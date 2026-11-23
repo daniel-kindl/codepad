@@ -2,7 +2,7 @@
 
   <!--
     Domain model. It uses no other CodePad module, no UI, no storage and no OS API.
-    Issue #2 adds the types. ArchitectureTests checks the dependency direction.
+    Issue #2 adds the types. ModuleDependencyTests checks the dependency direction.
   -->
   <PropertyGroup>
     <TargetFramework>net11.0</TargetFramework>

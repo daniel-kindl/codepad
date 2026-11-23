@@ -50,6 +50,37 @@ public sealed class MainWindowTests
         Assert.False(window.IsVisible);
     }
 
+    [AvaloniaFact]
+    public void KeyboardWalkThroughReachesEveryControlWithVisibleFocusAndNoTrap()
+    {
+        MainWindow window = ShowShell([]);
+        MenuItem file = Assert.IsType<MenuItem>(FindByName(window, "File"));
+        MenuItem exit = Assert.IsType<MenuItem>(FindByName(window, "Exit"));
+
+        // The File menu is the only tab stop. Tab moves focus to it and shows the focus.
+        Press(window, PhysicalKey.Tab);
+        Assert.Same(file, window.FocusManager?.GetFocusedElement());
+        Assert.Contains(":focus-visible", file.Classes);
+
+        // A second Tab keeps focus in the window, on the only tab stop.
+        Press(window, PhysicalKey.Tab);
+        Assert.Same(file, window.FocusManager?.GetFocusedElement());
+
+        // Alt+F opens the menu and moves focus to Exit. Escape closes it and gives focus back to File.
+        Press(window, PhysicalKey.F, RawInputModifiers.Alt);
+        Assert.True(file.IsSubMenuOpen);
+        Assert.Same(exit, window.FocusManager?.GetFocusedElement());
+        Press(window, PhysicalKey.Escape);
+        Assert.False(file.IsSubMenuOpen);
+        Assert.Same(file, window.FocusManager?.GetFocusedElement());
+    }
+
+    internal static void Press(Window window, PhysicalKey key, RawInputModifiers modifiers = RawInputModifiers.None)
+    {
+        window.KeyPressQwerty(key, modifiers);
+        window.KeyReleaseQwerty(key, modifiers);
+    }
+
     internal static MainWindow ShowShell(IReadOnlyList<StartupNotice> notices)
     {
         MainWindow window = new MainWindow { DataContext = new MainWindowViewModel(notices) };

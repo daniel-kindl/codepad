@@ -60,14 +60,16 @@ public sealed class JsonSettingsStore(string filePath) : ISettingsStore
         LogLevel logLevel = AppSettings.Default.MinimumLogLevel;
         if (root.TryGetProperty(LOG_LEVEL_PROPERTY, out JsonElement logLevelElement))
         {
-            // Accept only a level name. A number or an unknown name is a user error, not a level.
-            if (logLevelElement.ValueKind != JsonValueKind.String
-                || !Enum.TryParse(logLevelElement.GetString(), ignoreCase: true, out logLevel)
-                || !Enum.IsDefined(logLevel)
-                || int.TryParse(logLevelElement.GetString(), out _))
+            // Accept only one exact level name, in any case. Enum.TryParse would also accept numbers,
+            // padded names and comma lists such as "Debug, Information", which it combines into another level.
+            string? name = logLevelElement.ValueKind == JsonValueKind.String ? logLevelElement.GetString() : null;
+            string? match = Enum.GetNames<LogLevel>().FirstOrDefault(level => string.Equals(level, name, StringComparison.OrdinalIgnoreCase));
+            if (match is null)
             {
                 return SettingsReadResult.Unusable("invalid_log_level");
             }
+
+            logLevel = Enum.Parse<LogLevel>(match);
         }
 
         return SettingsReadResult.Loaded(new AppSettings(logLevel));
