@@ -20,7 +20,7 @@ scripts and tools quickly, offline. Run C# snippets on demand and check JSON as 
 
 | Project | Holds |
 | --- | --- |
-| `src/Codepad.Domain` | The domain model. Empty until #2. |
+| `src/Codepad.Domain` | The domain model: experiments, execution requests, outcomes, diagnostics, `ResultNode` and policies. |
 | `src/Codepad.Application` | Use cases and the interfaces for their IO needs. |
 | `src/Codepad.Infrastructure` | IO adapters, including the OS-specific folder locator. |
 | `src/Codepad.Desktop` | The Avalonia app and the composition root. |
