@@ -12,7 +12,7 @@ For the product scope, see [PRODUCT.md](PRODUCT.md).
 `Codepad.Desktop`. Each module has its own assembly. [#2] added the domain model. See
 [Domain model](#domain-model). [#3] added storage. See
 [Storage and retention](#storage-and-retention). [#4] added Contracts and Worker. See
-[C# script semantics](#c-script-semantics) and [Worker protocol](#worker-protocol). [#5] added the C# editor. See [C# editor](#c-editor). [#19] creates
+[C# script semantics](#c-script-semantics) and [Worker protocol](#worker-protocol). [#5] added the C# editor and [#6] added completion. See [C# editor](#c-editor). [#19] creates
 the CLI.
 
 The Desktop app opens one window with a menu, a workspace region and a status region. The workspace
@@ -274,7 +274,23 @@ failure without a response is a Warning. The supervisor never logs source, outpu
   Enter or a double click on a diagnostic selects its range in the editor.
 - **Colors.** The tokens are in `Themes/Tokens.axaml`, with measured contrast for light and dark.
   A diagnostic shows its severity as a word and as the color of its underline, never as color alone.
-- **Logging.** A failed analysis logs `editor.analysis_failed` (Warning) with the exception type only.
+- **Completion** ([#6]). `CSharpCompletionProvider` uses the semantic model of the same script compilation as
+  the analyzer, so there is one language service. It suggests keywords, names in scope (locals,
+  parameters, script variables and methods, imported types, namespaces) and members. After a dot it
+  suggests the members of the expression type, with extension methods, or the static members of a type or
+  the types of a namespace. It suggests nothing in a comment, in a string, or where the user declares a new
+  name. The list has at most 200 items, one for each name. A method shows its return type and its overload
+  count. Items are names only, so an accepted item never adds brackets or a semicolon. The provider
+  compiles in memory, never runs source, and never uses the network or packages.
+  The editor requests suggestions when the user types a name character or a dot, and with Ctrl+Space.
+  Each request has a cancellation token and the document version. `CSharpEditorViewModel.GetCompletionAsync`
+  works on an immutable copy of the text off the UI thread, and returns null when an edit or a document
+  switch made the result old. The view also checks the caret before it shows the window. AvaloniaEdit's
+  completion window handles Up, Down, Enter, Tab and Escape. A character that cannot be part of a name
+  closes the window and inserts nothing. Accepting is one document change, so one undo restores the typed word.
+  Each row shows the kind as a word, and has an accessible name with the name, kind and detail.
+- **Logging.** A failed analysis logs `editor.analysis_failed` and a failed completion request logs
+  `editor.completion_failed`, both Warning with the exception type only.
 
 ## Worker trust boundary
 

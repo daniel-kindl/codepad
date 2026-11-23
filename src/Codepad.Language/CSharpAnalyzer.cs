@@ -1,7 +1,5 @@
 using System.Collections.Immutable;
 using System.Globalization;
-using System.Reflection;
-using System.Runtime.InteropServices;
 using Codepad.Application.Editing;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -20,20 +18,6 @@ namespace Codepad.Language;
 public sealed class CSharpAnalyzer : ICSharpAnalyzer
 {
     private const int MAX_DIAGNOSTICS = 100;
-    private const string SCRIPT_NAME = "script.csx";
-
-    private static readonly string[] s_imports =
-    [
-        "System",
-        "System.Collections.Generic",
-        "System.IO",
-        "System.Linq",
-        "System.Text",
-        "System.Threading",
-        "System.Threading.Tasks",
-    ];
-
-    private static readonly Lazy<ImmutableArray<MetadataReference>> s_references = new Lazy<ImmutableArray<MetadataReference>>(LoadFrameworkReferences);
 
     /// <inheritdoc />
     public Task<EditorAnalysis> AnalyzeAsync(string source, CancellationToken cancellationToken)
@@ -45,13 +29,9 @@ public sealed class CSharpAnalyzer : ICSharpAnalyzer
 
     private static EditorAnalysis Analyze(string source, CancellationToken cancellationToken)
     {
-        CSharpParseOptions parseOptions = new CSharpParseOptions(LanguageVersion.Latest, DocumentationMode.None, SourceCodeKind.Script);
         SourceText text = SourceText.From(source);
-        SyntaxTree tree = CSharpSyntaxTree.ParseText(text, parseOptions, SCRIPT_NAME, cancellationToken);
-        CSharpCompilationOptions options = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
-            .WithUsings(s_imports)
-            .WithAllowUnsafe(false);
-        CSharpCompilation compilation = CSharpCompilation.CreateScriptCompilation("codepad-analysis", tree, s_references.Value, options);
+        SyntaxTree tree = ScriptCompilationFactory.Parse(text, cancellationToken);
+        CSharpCompilation compilation = ScriptCompilationFactory.Create(tree);
 
         ImmutableArray<RoslynDiagnostic> found = compilation.GetDiagnostics(cancellationToken);
         List<EditorDiagnostic> result = [];
@@ -76,27 +56,5 @@ public sealed class CSharpAnalyzer : ICSharpAnalyzer
         }
 
         return new EditorAnalysis(result);
-    }
-
-    private static ImmutableArray<MetadataReference> LoadFrameworkReferences()
-    {
-        // The default reference set: every managed assembly of the shared .NET runtime that the app runs on.
-        ImmutableArray<MetadataReference>.Builder references = ImmutableArray.CreateBuilder<MetadataReference>();
-        foreach (string path in Directory.EnumerateFiles(RuntimeEnvironment.GetRuntimeDirectory(), "*.dll").Order(StringComparer.Ordinal))
-        {
-            try
-            {
-                _ = AssemblyName.GetAssemblyName(path);
-            }
-            catch (BadImageFormatException)
-            {
-                // A native library. It is not a reference.
-                continue;
-            }
-
-            references.Add(MetadataReference.CreateFromFile(path));
-        }
-
-        return references.ToImmutable();
     }
 }

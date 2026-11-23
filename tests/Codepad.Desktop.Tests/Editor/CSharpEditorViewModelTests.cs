@@ -133,13 +133,119 @@ public sealed class CSharpEditorViewModelTests
         Assert.Equal("2 errors, 1 warning", fixture.Model.SummaryText);
     }
 
+    [Fact]
+    public async Task ACompletionForAnOldVersionIsDropped()
+    {
+        FakeCompletion completion = new FakeCompletion { Gate = new TaskCompletionSource() };
+        Fixture fixture = new Fixture(completion);
+        fixture.Model.Load("Console.Wri");
+
+        Task<CompletionResult?> request = fixture.Model.GetCompletionAsync(11, TestContext.Current.CancellationToken);
+        await completion.Started.WaitAsync(_timeout, TestContext.Current.CancellationToken);
+        fixture.Model.OnTextEdited("Console.Writ");
+        completion.Gate.SetResult();
+
+        Assert.Null(await request.WaitAsync(_timeout, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task ACompletionForAnotherDocumentIsDropped()
+    {
+        FakeCompletion completion = new FakeCompletion { Gate = new TaskCompletionSource() };
+        Fixture fixture = new Fixture(completion);
+        fixture.Model.Load("tab one");
+
+        Task<CompletionResult?> request = fixture.Model.GetCompletionAsync(3, TestContext.Current.CancellationToken);
+        await completion.Started.WaitAsync(_timeout, TestContext.Current.CancellationToken);
+        fixture.Model.Load("tab two");
+        completion.Gate.SetResult();
+
+        Assert.Null(await request.WaitAsync(_timeout, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task ACurrentCompletionIsReturned()
+    {
+        Fixture fixture = new Fixture(new FakeCompletion());
+        fixture.Model.Load("abc");
+
+        CompletionResult? result = await fixture.Model.GetCompletionAsync(3, TestContext.Current.CancellationToken);
+
+        Assert.Equal("abc", Assert.Single(result!.Items).Text);
+    }
+
+    [Fact]
+    public async Task ACancelledCompletionIsNull()
+    {
+        Fixture fixture = new Fixture(new FakeCompletion { Gate = new TaskCompletionSource() });
+        fixture.Model.Load("abc");
+        using CancellationTokenSource cancel = new CancellationTokenSource();
+
+        Task<CompletionResult?> request = fixture.Model.GetCompletionAsync(3, cancel.Token);
+        await cancel.CancelAsync();
+
+        Assert.Null(await request.WaitAsync(_timeout, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task ACompletionFailureIsReportedAsATypeNameAndGivesNoResult()
+    {
+        List<string> failures = [];
+        Fixture fixture = new Fixture(new FakeCompletion { Failure = new InvalidOperationException("private detail") }, failures.Add);
+        fixture.Model.Load("abc");
+
+        CompletionResult? result = await fixture.Model.GetCompletionAsync(3, TestContext.Current.CancellationToken);
+
+        Assert.Null(result);
+        Assert.Equal([nameof(InvalidOperationException)], failures);
+    }
+
+    [Fact]
+    public void DocumentVersionGrowsWithEditsAndLoads()
+    {
+        Fixture fixture = new Fixture();
+
+        long start = fixture.Model.DocumentVersion;
+        fixture.Model.Load("a");
+        fixture.Model.OnTextEdited("ab");
+
+        Assert.Equal(start + 2, fixture.Model.DocumentVersion);
+    }
+
+    private sealed class FakeCompletion : ICSharpCompletionProvider
+    {
+        private readonly TaskCompletionSource started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task Started => started.Task;
+
+        public TaskCompletionSource? Gate { get; set; }
+
+        public Exception? Failure { get; set; }
+
+        public async Task<CompletionResult> GetCompletionsAsync(string source, int caret, CancellationToken cancellationToken)
+        {
+            started.TrySetResult();
+            if (Gate is not null)
+            {
+                await Gate.Task.WaitAsync(cancellationToken);
+            }
+
+            if (Failure is not null)
+            {
+                throw Failure;
+            }
+
+            return new CompletionResult(0, caret, [new CompletionItem(source, CompletionKind.Variable, string.Empty)]);
+        }
+    }
+
     private sealed class Fixture
     {
         private readonly Queue<Action> ui = new Queue<Action>();
 
-        public Fixture()
+        public Fixture(ICSharpCompletionProvider? completion = null, Action<string>? reportCompletionFailure = null)
         {
-            Model = new CSharpEditorViewModel(new NoHighlighter(), Analyzer, Time, _debounce, action => { lock (ui) { ui.Enqueue(action); } }, Failures.Add);
+            Model = new CSharpEditorViewModel(new NoHighlighter(), Analyzer, Time, _debounce, action => { lock (ui) { ui.Enqueue(action); } }, Failures.Add, completion, reportCompletionFailure);
         }
 
         public ManualTimeProvider Time { get; } = new ManualTimeProvider();

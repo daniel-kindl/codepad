@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Styling;
 using AvaloniaEdit;
+using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Document;
 using Codepad.Application.Editing;
 using Codepad.Domain.Results;
@@ -22,12 +23,16 @@ public sealed partial class CSharpEditorView : UserControl
     private SyntaxColorizer? colorizer;
     private CSharpEditorViewModel? model;
     private bool replacingDocument;
+    private CompletionWindow? completionWindow;
+    private CancellationTokenSource? completionRequest;
 
     /// <summary>Initializes a new instance of the <see cref="CSharpEditorView"/> class.</summary>
     public CSharpEditorView()
     {
         InitializeComponent();
         Editor.TextChanged += OnEditorTextChanged;
+        Editor.TextArea.TextEntering += OnTextEntering;
+        Editor.TextArea.TextEntered += OnTextEntered;
         Editor.AddHandler(KeyDownEvent, OnEditorKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         Editor.AddHandler(PointerWheelChangedEvent, OnEditorWheel, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         DiagnosticList.AddHandler(KeyDownEvent, OnListKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
@@ -37,6 +42,9 @@ public sealed partial class CSharpEditorView : UserControl
 
     /// <summary>Gets the editor control. Tests use it to type and to read the caret.</summary>
     internal TextEditor TextEditor => Editor;
+
+    /// <summary>Gets the open completion window, or null. Tests use it to read the suggestions.</summary>
+    internal CompletionWindow? OpenCompletion => completionWindow;
 
     /// <summary>Gets the diagnostics list. Tests use it to select a row.</summary>
     internal ListBox List => DiagnosticList;
@@ -86,6 +94,7 @@ public sealed partial class CSharpEditorView : UserControl
 
     private void OnDocumentLoaded(string text)
     {
+        CancelCompletion();
         replacingDocument = true;
         try
         {
@@ -136,8 +145,99 @@ public sealed partial class CSharpEditorView : UserControl
         return this.TryFindResource(key, variant, out object? value) ? value as IBrush : null;
     }
 
+    private void OnTextEntering(object? sender, TextInputEventArgs e)
+    {
+        // A character that cannot be part of a name ends the word. The window closes and inserts nothing, so the
+        // typed punctuation stays exactly as typed.
+        if (completionWindow is not null && !string.IsNullOrEmpty(e.Text) && !IsNameCharacter(e.Text[0]))
+        {
+            completionWindow.Close();
+        }
+    }
+
+    private void OnTextEntered(object? sender, TextInputEventArgs e)
+    {
+        if (completionWindow is null && !string.IsNullOrEmpty(e.Text) && (IsNameCharacter(e.Text[0]) || e.Text[0] == '.'))
+        {
+            _ = ShowCompletionAsync();
+        }
+    }
+
+    private static bool IsNameCharacter(char character) => char.IsLetterOrDigit(character) || character == '_';
+
+    private void CancelCompletion()
+    {
+        completionRequest?.Cancel();
+        completionRequest?.Dispose();
+        completionRequest = null;
+        completionWindow?.Close();
+    }
+
+    private async Task ShowCompletionAsync()
+    {
+        if (model is null || !model.CanComplete)
+        {
+            return;
+        }
+
+        completionRequest?.Cancel();
+        completionRequest?.Dispose();
+        CancellationTokenSource source = new CancellationTokenSource();
+        completionRequest = source;
+        int caret = Editor.CaretOffset;
+        CSharpEditorViewModel requestedModel = model;
+        long version = requestedModel.DocumentVersion;
+
+        CompletionResult? result = await requestedModel.GetCompletionAsync(caret, source.Token);
+
+        // Show only suggestions for the text and the caret that asked for them, in the document that is still open.
+        if (result is null || result.Items.Count == 0 || source.IsCancellationRequested || !ReferenceEquals(model, requestedModel)
+            || requestedModel.DocumentVersion != version || Editor.CaretOffset != caret || completionWindow is not null)
+        {
+            return;
+        }
+
+        CompletionWindow window = new CompletionWindow(Editor.TextArea)
+        {
+            StartOffset = result.ReplaceStart,
+            CloseWhenCaretAtBeginning = true,
+        };
+        foreach (CompletionItem item in result.Items)
+        {
+            window.CompletionList.CompletionData.Add(new CompletionData(item));
+        }
+
+        window.Closed += (_, _) =>
+        {
+            if (ReferenceEquals(completionWindow, window))
+            {
+                completionWindow = null;
+            }
+        };
+        completionWindow = window;
+        window.Show();
+        if (result.ReplaceLength > 0)
+        {
+            window.CompletionList.SelectItem(Editor.Document.GetText(result.ReplaceStart, result.ReplaceLength));
+        }
+    }
+
     private void OnEditorKeyDown(object? sender, KeyEventArgs e)
     {
+        if (completionWindow is not null && e.Key == Key.Escape)
+        {
+            // The completion window handles Escape and closes. The editor must not also leave for the list.
+            return;
+        }
+
+        if (e.Key == Key.Space && e.KeyModifiers == KeyModifiers.Control)
+        {
+            CancelCompletion();
+            _ = ShowCompletionAsync();
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key == Key.Escape && e.KeyModifiers == KeyModifiers.None)
         {
             // Tab inserts a tab character in the editor, so Escape is the way out of the editor with the keyboard.
