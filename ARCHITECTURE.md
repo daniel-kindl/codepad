@@ -9,8 +9,8 @@ For the product scope, see [PRODUCT.md](PRODUCT.md).
 ## Current state
 
 [#1] created four projects: `Codepad.Domain`, `Codepad.Application`, `Codepad.Infrastructure` and
-`Codepad.Desktop`. Each module has its own assembly. Domain is empty until [#2]. [#4] creates
-Contracts and Worker. [#19] creates the CLI.
+`Codepad.Desktop`. Each module has its own assembly. [#2] added the domain model. See
+[Domain model](#domain-model). [#4] creates Contracts and Worker. [#19] creates the CLI.
 
 The Desktop app opens one window with a menu, a workspace region and a status region. At startup
 it reads an optional settings file and prepares the data folder. A problem with either does not
@@ -54,7 +54,9 @@ Tests check the dependency direction. See [#1] and [#2].
 
 ### Dependency rules
 
-- Domain is independent. It has no IO and no UI types.
+- Domain is independent. It has no IO and no UI types. It references only the .NET base class
+  library, and it reads no clock: the caller supplies each timestamp. `ModuleDependencyTests`
+  checks the assembly references and the IO and OS type references.
 - Application owns the use cases. It declares an interface for each IO need.
 - Infrastructure implements those interfaces.
 - Desktop creates the objects and connects them. It holds no business rules.
@@ -78,6 +80,29 @@ and a Windows implementation:
 - Update install, restart and rollback (`IUpdateInstaller`). See [#17].
 
 Packaging is not an adapter. [#15] builds a separate artifact for each OS.
+
+## Domain model
+
+[#2] holds the contract. The XML comments in `src/Codepad.Domain` state each rule. The terms are in
+[CONTEXT.md](CONTEXT.md).
+
+- **Values are immutable.** An edit to an `Experiment` returns a new experiment with the next
+  revision. An edit to the same value keeps the revision.
+- **A request owns its snapshot.** `ExecutionRequest.Snapshot` copies the source, the input, the
+  revision and the policy. A later edit or settings change does not change the request. A rerun
+  copies the snapshot with a new `ExecutionId`. It cannot use the same ID.
+- **The execution lifecycle is explicit.** Pending to Running, Running to Completed, and Pending to
+  Completed only as `Canceled`. Completed is final. Each other transition throws.
+- **The outcome agrees with the result.** Only `Success` has a value. `CompilationFailed` has at
+  least one error diagnostic. `Success` has no error diagnostic.
+- **The policy blocks automatic C# runs.** A C# `OperationPolicy` must be explicit-only. Only a
+  side-effect-free operation, such as JSON, can be live-eligible.
+- **A result is a bounded tree.** A `ResultNode` cannot contain itself. A converter writes a
+  `TruncatedNode` for a cycle or a limit. `ResultPolicy` holds the depth, item, text and node limits.
+  By default the converter does not call property getters. `ResultPolicy.FindExceededLimit` lets a
+  receiver refuse a tree that ignores the limits, with no recursion.
+- **The wire format is System.Text.Json.** The `kind` property names the node kind. Enums are text.
+  Domain needs no package for this.
 
 ## Operations
 
@@ -211,7 +236,7 @@ implementation. Record a durable decision as an ADR in `docs/adr/` when it passe
 | V-10 | Which Linux artifact format: an archive or a distribution package? | [#15] |
 | V-11 | Which signature scheme for the update manifest, and how does the owner keep the key? | [#15], [#17] |
 | V-12 | How does the update helper replace the app and roll back on each OS? | [#17] |
-| V-13 | Do Contracts use Domain to carry `ResultNode`? Does Worker use only Contracts? | [#1], [#2], [#4] |
+| V-13 | Do Contracts use Domain to carry `ResultNode`? Does Worker use only Contracts? Partly resolved in [#2]: `ResultNode`, diagnostics and outcomes serialize with System.Text.Json and no package, so Contracts can carry them. [#4] decides the module references. | [#1], [#2], [#4] |
 | V-14 | How do the CLI and a running desktop app share one SQLite database safely? | [#3], [#19] |
 | V-15 | Is the CLI a separate executable or a mode of the desktop executable? How does it get on the PATH? | [#15], [#17], [#19] |
 | V-16 | Which command names and argument shapes does the CLI use? | [#19] |
