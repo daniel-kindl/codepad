@@ -1,5 +1,12 @@
 <Solution>
   <Folder Name="/src/">
-    <Project Path="src/Codepad/Codepad.csproj" />
+    <Project Path="src/Codepad.Domain/Codepad.Domain.csproj" />
+    <Project Path="src/Codepad.Application/Codepad.Application.csproj" />
+    <Project Path="src/Codepad.Infrastructure/Codepad.Infrastructure.csproj" />
+    <Project Path="src/Codepad.Desktop/Codepad.Desktop.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Codepad.Tests/Codepad.Tests.csproj" />
+    <Project Path="tests/Codepad.Desktop.Tests/Codepad.Desktop.Tests.csproj" />
   </Folder>
 </Solution>

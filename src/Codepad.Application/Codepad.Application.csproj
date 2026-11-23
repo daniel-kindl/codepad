@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Use cases and the interfaces for their IO needs. No Avalonia, no storage engine, no OS API. -->
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Codepad.Domain\Codepad.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

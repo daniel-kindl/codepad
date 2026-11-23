@@ -1,7 +1,7 @@
 name: validate
 
-# Runs every repository check. The job name "validate" is the required
-# status check context for main. Do not rename it.
+# Runs every repository check on Linux and Windows. The job name "validate" is the required
+# status check context for main. Do not rename it: it passes only when every check job passes.
 # This workflow does not tag, release or publish.
 
 on:
@@ -20,27 +20,24 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  validate:
-    name: validate
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+  dotnet:
+    name: dotnet (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     steps:
       - name: Check out the repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          # check-adrs compares the change with origin/main, so it needs the history.
-          fetch-depth: 0
 
       - name: Set up .NET from global.json
         uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
-
-      - name: Set up Node.js
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24
 
       # Locked mode (set in Directory.Build.props when CI=true) fails when a
       # lock file does not agree with the package references. NuGet audit
@@ -54,8 +51,65 @@ jobs:
       - name: Check the format and the code style
         run: dotnet format --verify-no-changes --no-restore
 
+      # The headless UI tests need no display. They save screenshots for review.
       - name: Run the tests
         run: dotnet test --configuration Release --no-build
+
+      # The launch smoke test starts the real app with no network access, opens the window and
+      # exits with code 0. A guard first proves that the network is blocked for the test.
+      # Linux: a new network namespace with no interfaces. Ubuntu 24.04 restricts unprivileged
+      # user namespaces with AppArmor, so the step allows them on this disposable runner first.
+      - name: Launch smoke test with no network (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          if unshare -rn curl -sS -m 10 -o /dev/null https://github.com; then
+            echo "The network is not blocked in the namespace." >&2
+            exit 1
+          fi
+          unshare -rn xvfb-run -a dotnet src/Codepad.Desktop/bin/Release/net11.0/Codepad.Desktop.dll --smoke-test
+
+      # Windows: firewall rules block all outbound traffic of dotnet.exe and of curl.exe on this
+      # disposable runner. The curl.exe guard proves that the firewall enforces the rules.
+      - name: Launch smoke test with no network (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Set-NetFirewallProfile -Profile Domain,Private,Public -Enabled True
+          $dotnet = (Get-Command dotnet).Source
+          $curl = (Get-Command curl.exe).Source
+          New-NetFirewallRule -DisplayName "Block dotnet for the smoke test" -Direction Outbound -Program $dotnet -Action Block | Out-Null
+          New-NetFirewallRule -DisplayName "Block curl for the guard" -Direction Outbound -Program $curl -Action Block | Out-Null
+          & $curl -sS -m 10 -o NUL https://github.com
+          if ($LASTEXITCODE -eq 0) { Write-Error "The firewall does not block outbound traffic."; exit 1 }
+          & $dotnet src/Codepad.Desktop/bin/Release/net11.0/Codepad.Desktop.dll --smoke-test
+          exit $LASTEXITCODE
+
+      - name: Upload the shell screenshots
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: screenshots-${{ runner.os }}
+          path: tests/Codepad.Desktop.Tests/bin/Release/net11.0/screenshots/
+          if-no-files-found: error
+          retention-days: 14
+
+  dkstack:
+    name: dkstack checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # check-adrs compares the change with origin/main, so it needs the history.
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
 
       # dkstack format checks, copied from dkstack tag v1.6.0.
       # To update them, copy scripts/check-*.mjs again from a newer tag.
@@ -70,3 +124,18 @@ jobs:
       - name: Check that new ADRs have Status and Affects
         if: ${{ !cancelled() }}
         run: node scripts/check-adrs.mjs
+
+  validate:
+    name: validate
+    needs: [dotnet, dkstack]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fail unless every check job passed
+        env:
+          DOTNET_RESULT: ${{ needs.dotnet.result }}
+          DKSTACK_RESULT: ${{ needs.dkstack.result }}
+        run: |
+          echo "dotnet: $DOTNET_RESULT, dkstack: $DKSTACK_RESULT"
+          test "$DOTNET_RESULT" = "success" && test "$DKSTACK_RESULT" = "success"

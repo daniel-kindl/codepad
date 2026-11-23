@@ -1,0 +1,33 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!--
+    CodePad design tokens. The shell uses the Fluent theme and these tokens on top of it.
+    Measured contrast (WCAG 2.2): light text/workspace 17.2:1, muted/workspace 6.5:1,
+    text/status 15.5:1, warning/status 6.0:1. Dark text/workspace 17.0:1, muted/workspace 7.6:1,
+    text/status 15.1:1, warning/status 9.8:1. The borders are decorative.
+  -->
+  <ResourceDictionary.ThemeDictionaries>
+    <ResourceDictionary x:Key="Light">
+      <SolidColorBrush x:Key="ShellWorkspaceBackgroundBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="ShellStatusBackgroundBrush" Color="#F3F3F3" />
+      <SolidColorBrush x:Key="ShellBorderBrush" Color="#D6D6D6" />
+      <SolidColorBrush x:Key="ShellTextBrush" Color="#1B1B1B" />
+      <SolidColorBrush x:Key="ShellMutedTextBrush" Color="#5E5E5E" />
+      <SolidColorBrush x:Key="ShellWarningTextBrush" Color="#8F4A00" />
+    </ResourceDictionary>
+    <ResourceDictionary x:Key="Dark">
+      <SolidColorBrush x:Key="ShellWorkspaceBackgroundBrush" Color="#1C1C1C" />
+      <SolidColorBrush x:Key="ShellStatusBackgroundBrush" Color="#262626" />
+      <SolidColorBrush x:Key="ShellBorderBrush" Color="#3A3A3A" />
+      <SolidColorBrush x:Key="ShellTextBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="ShellMutedTextBrush" Color="#ADADAD" />
+      <SolidColorBrush x:Key="ShellWarningTextBrush" Color="#FFC857" />
+    </ResourceDictionary>
+  </ResourceDictionary.ThemeDictionaries>
+
+  <x:Double x:Key="ShellBodyFontSize">14</x:Double>
+  <x:Double x:Key="ShellTitleFontSize">20</x:Double>
+  <Thickness x:Key="ShellStatusPadding">12,6</Thickness>
+
+</ResourceDictionary>

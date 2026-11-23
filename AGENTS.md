@@ -24,6 +24,9 @@ Add one entry for each exception:
 - Check a change with the same commands as CI (`.github/workflows/validate.yml`):
   `dotnet restore`, `dotnet build --configuration Release --no-restore`,
   `dotnet format --verify-no-changes --no-restore`, `dotnet test --configuration Release --no-build`.
+  CI then runs the launch smoke test with no network on Linux and Windows. See README.md, "Launch
+  smoke test".
+- C# code uses explicit types. Do not use `var`. The build reports each `var` as an error (IDE0008).
 - The version is `<Version>` in `Directory.Build.props`. Record each change in `CHANGELOG.md`.
 - Package versions go in `Directory.Packages.props` (central package management). Commit each
   `packages.lock.json`.

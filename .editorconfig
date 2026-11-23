@@ -21,6 +21,12 @@ csharp_new_line_before_else = true
 csharp_new_line_before_catch = true
 csharp_new_line_before_finally = true
 
+# Explicit types. Do not use `var`. The build reports each `var` as an error (IDE0008).
+csharp_style_var_for_built_in_types = false:error
+csharp_style_var_when_type_is_apparent = false:error
+csharp_style_var_elsewhere = false:error
+dotnet_diagnostic.IDE0008.severity = error
+
 # Naming. See dkstack coding/naming.md. The build reports a violation as an error (IDE1006).
 dotnet_diagnostic.IDE1006.severity = error
 dotnet_naming_rule.interfaces_are_i_pascal_case.symbols = interfaces
