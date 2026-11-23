@@ -1,0 +1,72 @@
+name: validate
+
+# Runs every repository check. The job name "validate" is the required
+# status check context for main. Do not rename it.
+# This workflow does not tag, release or publish.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# A new push to a pull request cancels the old run of that pull request.
+# A push to main is never cancelled: each commit on main gets a full run.
+concurrency:
+  group: validate-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  validate:
+    name: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # check-adrs compares the change with origin/main, so it needs the history.
+          fetch-depth: 0
+
+      - name: Set up .NET from global.json
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      # Locked mode (set in Directory.Build.props when CI=true) fails when a
+      # lock file does not agree with the package references. NuGet audit
+      # reports vulnerable packages; warnings are errors, so the restore fails.
+      - name: Restore from the lock files and audit the packages
+        run: dotnet restore
+
+      - name: Build with warnings as errors
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Check the format and the code style
+        run: dotnet format --verify-no-changes --no-restore
+
+      - name: Run the tests
+        run: dotnet test --configuration Release --no-build
+
+      # dkstack format checks, copied from dkstack tag v1.6.0.
+      # To update them, copy scripts/check-*.mjs again from a newer tag.
+      - name: Check the format of the maps in docs/maps
+        if: ${{ !cancelled() }}
+        run: node scripts/check-maps.mjs
+
+      - name: Check the format of CONTEXT.md
+        if: ${{ !cancelled() }}
+        run: node scripts/check-context.mjs
+
+      - name: Check that new ADRs have Status and Affects
+        if: ${{ !cancelled() }}
+        run: node scripts/check-adrs.mjs
