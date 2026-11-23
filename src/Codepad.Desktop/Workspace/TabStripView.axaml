@@ -1,0 +1,55 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:workspace="using:Codepad.Desktop.Workspace"
+             x:Class="Codepad.Desktop.Workspace.TabStripView"
+             x:DataType="workspace:WorkspaceViewModel">
+
+  <Border Classes="tab-strip-region">
+    <DockPanel>
+
+      <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4" Margin="4,0">
+        <Button Content="+ C#" Click="OnNewCSharpClick" AutomationProperties.Name="New C# experiment" />
+        <Button Content="+ JSON" Click="OnNewJsonClick" AutomationProperties.Name="New JSON experiment" />
+      </StackPanel>
+
+      <ListBox x:Name="TabList"
+               Classes="tab-strip"
+               ItemsSource="{Binding Tabs}"
+               SelectedItem="{Binding ActiveTab, Mode=OneWay}"
+               ScrollViewer.HorizontalScrollBarVisibility="Auto"
+               ScrollViewer.VerticalScrollBarVisibility="Disabled"
+               AutomationProperties.Name="Open experiments">
+        <ListBox.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Orientation="Horizontal" />
+          </ItemsPanelTemplate>
+        </ListBox.ItemsPanel>
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="workspace:ExperimentTabViewModel">
+            <StackPanel Orientation="Horizontal" Spacing="6"
+                        AutomationProperties.Name="{Binding AccessibleName}"
+                        ToolTip.Tip="{Binding Title}">
+              <StackPanel.ContextMenu>
+                <ContextMenu>
+                  <MenuItem Header="Move left" Click="OnMoveLeftClick" AutomationProperties.Name="Move tab left" />
+                  <MenuItem Header="Move right" Click="OnMoveRightClick" AutomationProperties.Name="Move tab right" />
+                  <MenuItem Header="Close" Click="OnCloseMenuClick" AutomationProperties.Name="Close tab" />
+                </ContextMenu>
+              </StackPanel.ContextMenu>
+              <TextBlock Classes="tab-kind" Text="{Binding KindText}" />
+              <TextBlock Classes="tab-title" Text="{Binding Title}" MaxWidth="160" TextTrimming="CharacterEllipsis" />
+              <TextBlock Classes="tab-badge"
+                         Classes.error="{Binding HasSaveProblem}"
+                         IsVisible="{Binding SaveBadge, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                         Text="{Binding SaveBadge}" />
+              <Button Classes="tab-close" Content="×" Click="OnCloseClick"
+                      AutomationProperties.Name="{Binding CloseName}" />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+
+    </DockPanel>
+  </Border>
+
+</UserControl>

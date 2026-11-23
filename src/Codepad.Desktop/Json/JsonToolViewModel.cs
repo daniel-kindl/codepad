@@ -140,7 +140,8 @@ public sealed class JsonToolViewModel : INotifyPropertyChanged, IDisposable
     public void OnTextEdited(string newText)
     {
         ArgumentNullException.ThrowIfNull(newText);
-        if (disposed || loading)
+        // A text box can report the text that Load gave it as a change, after Load ended. That is not an edit.
+        if (disposed || loading || newText == text)
         {
             return;
         }

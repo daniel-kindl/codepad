@@ -33,10 +33,13 @@ public sealed class SqliteMigrationTests : IDisposable
         temp.Open();
 
         Assert.Equal(SqliteMigrations.All[^1].Version, Scalar("PRAGMA user_version;"));
-        foreach (string table in new[] { "experiments", "settings", "execution_history", "tab_session" })
+        foreach (string table in new[] { "experiments", "settings", "execution_history" })
         {
             Assert.Equal(1, Scalar($"SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = '{table}';"));
         }
+
+        // Step 3 removed the reserved table. The session is a setting.
+        Assert.Equal(0, Scalar("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'tab_session';"));
     }
 
     [Fact]

@@ -15,6 +15,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The
 
 ### Added
 
+- Tabs and session restore (#10): the window has a tab strip. Each tab is one experiment (C# or JSON) with its own
+  text, caret, scroll position and save state. You can create, switch, reorder (drag, context menu, Ctrl+Shift+PageUp
+  and PageDown) and close tabs. Ctrl+Tab and Ctrl+Shift+Tab cycle the tabs. Ctrl+W closes the active tab. Closing a
+  tab does not delete the experiment. The app restores the open tabs and the active tab after a restart and
+  omits an experiment that no longer exists. A tab shows "Save failed" when autosave fails, and a tab or the window
+  that cannot save stays open on the first close request. Schema step 3 removes the unused table `tab_session`.
+  The live JSON tool is now a tab. Run is not connected to a tab yet.
 - Live JSON tool (#9): `JsonEvaluator` checks and formats JSON with `System.Text.Json` after a short pause in
   typing, with no Run command. It limits the size to 1,000,000 bytes and the depth to 64. A valid document
   shows as indented text and as a tree in the result panel. An invalid document shows the line and column of

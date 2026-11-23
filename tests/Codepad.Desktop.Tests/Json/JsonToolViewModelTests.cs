@@ -136,6 +136,19 @@ public sealed class JsonToolViewModelTests
     }
 
     [Fact]
+    public void ReportingTheLoadedTextAgainIsNotAnEdit()
+    {
+        Fixture fixture = new Fixture();
+        List<string> changes = [];
+        fixture.Model.ContentChanged += changes.Add;
+        fixture.Model.Load("[1]");
+
+        fixture.Model.OnTextEdited("[1]");
+
+        Assert.Empty(changes);
+    }
+
+    [Fact]
     public async Task AnEvaluatorFailureShowsAFriendlyLineAndReportsOnlyTheTypeName()
     {
         Fixture fixture = new Fixture { Evaluator = { Failure = new InvalidOperationException("secret [1]") } };

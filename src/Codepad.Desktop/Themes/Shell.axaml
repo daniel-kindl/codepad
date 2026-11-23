@@ -48,6 +48,54 @@
     <Setter Property="TextWrapping" Value="Wrap" />
   </Style>
 
+  <!-- The tab strip. -->
+
+  <Style Selector="Border.tab-strip-region">
+    <Setter Property="Background" Value="{DynamicResource ShellStatusBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ShellBorderBrush}" />
+    <Setter Property="BorderThickness" Value="0,0,0,1" />
+  </Style>
+
+  <Style Selector="ListBox.tab-strip">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+  </Style>
+
+  <Style Selector="ListBox.tab-strip ListBoxItem">
+    <Setter Property="Padding" Value="10,4,4,4" />
+    <Setter Property="MinHeight" Value="32" />
+  </Style>
+
+  <Style Selector="TextBlock.tab-kind">
+    <Setter Property="Foreground" Value="{DynamicResource ShellMutedTextBrush}" />
+    <Setter Property="FontSize" Value="{StaticResource ShellBodyFontSize}" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="TextBlock.tab-title">
+    <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+    <Setter Property="FontSize" Value="{StaticResource ShellBodyFontSize}" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="TextBlock.tab-badge">
+    <Setter Property="Foreground" Value="{DynamicResource ShellMutedTextBrush}" />
+    <Setter Property="FontSize" Value="{StaticResource ShellBodyFontSize}" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="TextBlock.tab-badge.error">
+    <Setter Property="Foreground" Value="{DynamicResource ShellWarningTextBrush}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <Style Selector="Button.tab-close">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Padding" Value="6,0" />
+    <Setter Property="MinHeight" Value="24" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
   <!-- The C# editor and its diagnostics list. -->
 
   <Style Selector="ae|TextEditor.code-editor">

@@ -2,8 +2,12 @@ using System.Diagnostics;
 using System.Reflection;
 using Avalonia;
 using Codepad.Application.Editing;
+using Codepad.Application.Json;
+using Codepad.Application.Workspace;
 using Codepad.Application.Startup;
 using Codepad.Desktop.Editor;
+using Codepad.Desktop.Json;
+using Codepad.Desktop.Workspace;
 using Codepad.Desktop.Shell;
 using Codepad.Infrastructure.Startup;
 using Codepad.Infrastructure.Storage;
@@ -27,7 +31,8 @@ internal static partial class Program
         long startedAt = Stopwatch.GetTimestamp();
 
         AppFolderPaths folders = AppFolderLocator.Locate();
-        StartupReport report = new StartupService(JsonSettingsStore.InFolder(folders.ConfigFolder), new FileSystemDataFolder(folders.DataFolder), new SqliteDatabase(Path.Combine(folders.DataFolder, DATABASE_FILE_NAME))).Prepare();
+        SqliteDatabase database = new SqliteDatabase(Path.Combine(folders.DataFolder, DATABASE_FILE_NAME));
+        StartupReport report = new StartupService(JsonSettingsStore.InFolder(folders.ConfigFolder), new FileSystemDataFolder(folders.DataFolder), database).Prepare();
 
         using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder
             .SetMinimumLevel(report.Settings.MinimumLogLevel)
@@ -39,9 +44,13 @@ internal static partial class Program
             LogStartupDegraded(logger, notice.Kind, notice.Reason);
         }
 
+        WorkspaceViewModel? workspace = report.Notices.Any(notice => notice.Kind is StartupNoticeKind.DataFolderUnavailable or StartupNoticeKind.DataStoreUnavailable)
+            ? null
+            : OpenWorkspace(database, logger);
+
         string version = typeof(Program).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "unknown";
         ShellOptions options = new ShellOptions(
-            new MainWindowViewModel(report.Notices, new CSharpEditorViewModel(new CSharpHighlighter(), new CSharpAnalyzer(), TimeProvider.System, DiagnosticsCoordinator.DefaultDebounce, reportFailure: reason => LogAnalysisFailed(logger, reason), completion: new CSharpCompletionProvider(), reportCompletionFailure: reason => LogCompletionFailed(logger, reason))),
+            new MainWindowViewModel(report.Notices, new CSharpEditorViewModel(new CSharpHighlighter(), new CSharpAnalyzer(), TimeProvider.System, DiagnosticsCoordinator.DefaultDebounce, reportFailure: reason => LogAnalysisFailed(logger, reason), completion: new CSharpCompletionProvider(), reportCompletionFailure: reason => LogCompletionFailed(logger, reason)), workspace: workspace),
             () =>
             {
                 long startupMs = (long)Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds;
@@ -60,6 +69,18 @@ internal static partial class Program
             LogShellCrashed(logger, exception.GetType().FullName ?? exception.GetType().Name);
             throw;
         }
+    }
+
+    private static WorkspaceViewModel OpenWorkspace(SqliteDatabase database, ILogger logger)
+    {
+        WorkspaceViewModel workspace = new WorkspaceViewModel(
+            new SqliteExperimentRepository(database),
+            new SessionStore(new SqlitePreferenceRepository(database)),
+            TimeProvider.System,
+            () => new CSharpEditorViewModel(new CSharpHighlighter(), new CSharpAnalyzer(), TimeProvider.System, DiagnosticsCoordinator.DefaultDebounce, reportFailure: reason => LogAnalysisFailed(logger, reason), completion: new CSharpCompletionProvider(), reportCompletionFailure: reason => LogCompletionFailed(logger, reason)),
+            () => new JsonToolViewModel(new JsonEvaluator(), TimeProvider.System, LiveJsonCoordinator.DefaultDebounce, reportFailure: reason => LogJsonFailed(logger, reason)),
+            reportFailure: reason => LogWorkspaceStorageFailed(logger, reason));
+        return workspace;
     }
 
     /// <summary>Builds the app for the Avalonia previewer. Do not remove: the IDE tools call it by name.</summary>
@@ -90,4 +111,12 @@ internal static partial class Program
     [LoggerMessage(EventId = 5, EventName = "editor.completion_failed", Level = LogLevel.Warning,
         Message = "A C# completion request failed: {ExceptionType}")]
     private static partial void LogCompletionFailed(ILogger logger, string exceptionType);
+
+    [LoggerMessage(EventId = 6, EventName = "json.evaluation_failed", Level = LogLevel.Warning,
+        Message = "The JSON evaluation failed: {ExceptionType}")]
+    private static partial void LogJsonFailed(ILogger logger, string exceptionType);
+
+    [LoggerMessage(EventId = 7, EventName = "workspace.storage_failed", Level = LogLevel.Warning,
+        Message = "The tab session could not be read or saved: {Reason}")]
+    private static partial void LogWorkspaceStorageFailed(ILogger logger, string reason);
 }
