@@ -140,7 +140,8 @@ CodePad has two operation kinds. Both use the same experiment, diagnostic and `R
 | Limits | Time limit, output limits, result limits | Document size and nesting limits |
 | Old results | Each run has its own record | The app drops a result for an old revision |
 
-No issue names the module that holds the live JSON provider. See V-09.
+The live JSON provider is in `Codepad.Application` (`Json` folder). It uses only `System.Text.Json`, so it
+needs no new module and no package. It runs in the desktop process on a thread-pool thread. See V-09.
 
 ### C# run flow
 
@@ -179,9 +180,26 @@ Rules for the run. See [#4] and [#7].
 
 ### Live JSON flow
 
-- Each evaluation has the experiment, the document revision and a sequence number. See [#9].
-- When a newer revision exists, the app drops the old result, also if it could not cancel the work.
-- A parse error has a line and a position. The input stays as the user typed it.
+- Each evaluation has a sequence number (`LiveJsonCoordinator.Version`). One coordinator serves one open
+  document, and the view model makes a new coordinator when another document opens. So an evaluation is
+  identified by the document and the sequence. See [#9].
+- The coordinator waits 250 ms after the last edit, then evaluates the newest text once. A newer edit cancels
+  the running evaluation. The coordinator also drops the late result of an old version, because the provider
+  cannot always stop. The view model checks the version again on the UI thread.
+- `JsonEvaluator` checks the size (1,000,000 UTF-8 bytes), then parses with a depth limit of 64, then builds
+  the indented text and a tree that follows `ResultPolicy.Default`. A document over a limit is a result with
+  the code `JSON_TOO_LARGE` or `JSON_TOO_DEEP`. It is not an exception.
+- A parse error has a line and a column from 1. The column counts characters, not bytes. The message has no
+  framework position text. The code is `JSON_SYNTAX`. Empty input is `JSON_EMPTY`. The UI shows it as a hint,
+  not as an error.
+- The input stays as the user typed it. A tool never changes it. After an error, the panel keeps the last valid
+  preview and says so.
+- Numbers keep their written form. The text keeps a duplicate property name. The tree shows the last value of
+  a duplicate name.
+- Live evaluation makes no history record. Autosave stores the source of a JSON experiment as for a C#
+  experiment, also when the JSON is not valid.
+- The tool view (`JsonToolView`) is not in the main window yet. The tabs and the experiment list (#10, #11)
+  connect it and the autosave.
 
 ### C# script semantics
 
@@ -438,7 +456,7 @@ implementation. Record a durable decision as an ADR in `docs/adr/` when it passe
 | V-06 | Which Avalonia editor component? Check it for selection, undo, IME, zoom and accessibility. | [#5]. Resolved: AvaloniaEdit. Check IME and Windows font rendering on a real Windows machine. |
 | V-07 | Which XDG fallback folders on Linux? Resolved in [#3]: `$XDG_DATA_HOME/codepad` and `$XDG_CONFIG_HOME/codepad`, with `~/.local/share` and `~/.config` when the variable is not set. | [#3] |
 | V-08 | Is a plain bounded SQLite query fast enough for search, or is FTS needed? Measure first. | [#11] |
-| V-09 | Which module holds the live JSON provider? Does it run in the desktop process on a background thread? | [#9] |
+| V-09 | Which module holds the live JSON provider? Does it run in the desktop process on a background thread? Resolved in [#9]: `Codepad.Application`, in the desktop process on a thread-pool thread. See [Live JSON flow](#live-json-flow). | [#9] |
 | V-10 | Which Linux artifact format: an archive or a distribution package? | [#15] |
 | V-11 | Which signature scheme for the update manifest, and how does the owner keep the key? | [#15], [#17] |
 | V-12 | How does the update helper replace the app and roll back on each OS? | [#17] |

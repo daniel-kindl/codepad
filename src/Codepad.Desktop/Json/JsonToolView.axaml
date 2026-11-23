@@ -1,0 +1,58 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:json="using:Codepad.Desktop.Json"
+             xmlns:results="using:Codepad.Desktop.Results"
+             x:Class="Codepad.Desktop.Json.JsonToolView"
+             x:DataType="json:JsonToolViewModel">
+
+  <Grid RowDefinitions="3*,Auto,Auto,2*" AutomationProperties.Name="JSON tool">
+
+    <Grid Grid.Row="0" ColumnDefinitions="*,Auto,*">
+      <TextBox x:Name="InputBox"
+               Grid.Column="0"
+               AcceptsReturn="True"
+               AcceptsTab="True"
+               TextWrapping="NoWrap"
+               FontFamily="{StaticResource EditorFontFamily}"
+               FontSize="{StaticResource EditorFontSize}"
+               ScrollViewer.HorizontalScrollBarVisibility="Auto"
+               ScrollViewer.VerticalScrollBarVisibility="Auto"
+               PlaceholderText="Type or paste JSON"
+               AutomationProperties.Name="JSON input" />
+      <GridSplitter Grid.Column="1" Width="4" ResizeDirection="Columns" Focusable="False"
+                    Background="{DynamicResource ShellBorderBrush}" AutomationProperties.Name="Resize the formatted preview" />
+      <DockPanel Grid.Column="2">
+        <TextBlock DockPanel.Dock="Top" Classes="notice"
+                   IsVisible="{Binding FormattedNote, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                   Text="{Binding FormattedNote}"
+                   AutomationProperties.Name="Formatted JSON notice" />
+      <TextBox x:Name="FormattedBox"
+                              IsReadOnly="True"
+               AcceptsReturn="True"
+               TextWrapping="NoWrap"
+               FontFamily="{StaticResource EditorFontFamily}"
+               FontSize="{StaticResource EditorFontSize}"
+               ScrollViewer.HorizontalScrollBarVisibility="Auto"
+               ScrollViewer.VerticalScrollBarVisibility="Auto"
+               Text="{Binding FormattedText, Mode=OneWay}"
+               AutomationProperties.Name="Formatted JSON" />
+      </DockPanel>
+    </Grid>
+
+    <Border Grid.Row="1" Classes="status-region">
+      <TextBlock Classes="status"
+                 Classes.warning="{Binding HasProblem}"
+                 Text="{Binding SummaryText}"
+                 TextWrapping="Wrap"
+                 AutomationProperties.Name="JSON status"
+                 AutomationProperties.LiveSetting="Polite" />
+    </Border>
+
+    <GridSplitter Grid.Row="2" Height="4" HorizontalAlignment="Stretch" ResizeDirection="Rows" Focusable="False"
+                  Background="{DynamicResource ShellBorderBrush}" AutomationProperties.Name="Resize the result panel" />
+
+    <results:ResultsView Grid.Row="3" DataContext="{Binding Results}" />
+
+  </Grid>
+
+</UserControl>
