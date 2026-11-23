@@ -13,10 +13,17 @@ internal sealed class FakeRunner : ICSharpRunner
 {
     public List<ExecutionRequest> Requests { get; } = [];
 
-    public Task<RunReport> RunAsync(ExecutionRequest request, CancellationToken cancellationToken = default)
+    public Task? Gate { get; set; }
+
+    public async Task<RunReport> RunAsync(ExecutionRequest request, CancellationToken cancellationToken = default)
     {
         Requests.Add(request);
-        return Task.FromResult(MemoryHistory.Report(request, ExecutionOutcome.Success));
+        if (Gate is not null)
+        {
+            await Gate;
+        }
+
+        return MemoryHistory.Report(request, ExecutionOutcome.Success);
     }
 }
 
@@ -68,8 +75,17 @@ internal sealed class MemoryHistory : IRunHistoryRepository
         return Task.CompletedTask;
     }
 
-    public Task<IReadOnlyList<RunSummary>> ListAsync(ExperimentId experimentId, CancellationToken cancellationToken = default)
+    public Func<ExperimentId, Task>? BeforeList { get; set; }
+
+    public Func<ExecutionId, Task>? BeforeGet { get; set; }
+
+    public async Task<IReadOnlyList<RunSummary>> ListAsync(ExperimentId experimentId, CancellationToken cancellationToken = default)
     {
+        if (BeforeList is not null)
+        {
+            await BeforeList(experimentId);
+        }
+
         if (FailList is not null)
         {
             throw new ExperimentStorageException(FailList);
@@ -80,9 +96,16 @@ internal sealed class MemoryHistory : IRunHistoryRepository
             .OrderByDescending(record => record.CompletedAt)
             .Select(record => new RunSummary(record.Request.Id, record.Request.ExperimentId, record.Request.ExperimentRevision, record.Request.RequestedAt, record.CompletedAt, record.Report.Result.Outcome))
             .ToList();
-        return Task.FromResult(list);
+        return list;
     }
 
-    public Task<RunRecord?> GetAsync(ExecutionId id, CancellationToken cancellationToken = default) =>
-        Task.FromResult(records.FirstOrDefault(record => record.Request.Id == id));
+    public async Task<RunRecord?> GetAsync(ExecutionId id, CancellationToken cancellationToken = default)
+    {
+        if (BeforeGet is not null)
+        {
+            await BeforeGet(id);
+        }
+
+        return records.FirstOrDefault(record => record.Request.Id == id);
+    }
 }

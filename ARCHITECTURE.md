@@ -340,6 +340,13 @@ failure without a response is a Warning. The supervisor never logs source, outpu
 - **Panel.** The panel keeps the inspected record in memory. If retention removes the record from storage while
   the user looks at it, the view and Rerun still work. The panel says "Saved run" and that the current code is
   unchanged, so an old success is never shown as the current output.
+- **Stale reads.** Each click, each end of an inspection and each experiment switch starts a new navigation,
+  and each list read has a version. A read or a rerun that finishes after a newer one started changes nothing.
+  After a rerun, the new run replaces the saved run in the panel, with its own time and ID.
+- **Limits.** Retention orders by the completion time, so a clock that moves back can trim a newer run first.
+  The foreign key to `experiments` has no delete rule: the change that deletes experiments must choose one.
+  The last selected experiment is not stored here. [#10] stores the tab session. This change tests only that
+  the history of an experiment survives a restart.
 - **Not connected yet.** The window shows the panel only when it gets a history model. The app has no current
   experiment and no Run command yet, so `Program` does not create one. The change that adds them calls
   `RunHistoryViewModel.ShowExperimentAsync` and `RunHistoryService.RunAsync`.

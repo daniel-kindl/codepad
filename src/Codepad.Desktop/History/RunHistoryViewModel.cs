@@ -48,6 +48,8 @@ public sealed class RunHistoryViewModel : INotifyPropertyChanged
     private string notice = string.Empty;
     private string emptyText = NO_EXPERIMENT_TEXT;
     private bool isBusy;
+    private int navigation;
+    private int listVersion;
 
     /// <summary>Initializes a new instance of the <see cref="RunHistoryViewModel"/> class.</summary>
     /// <param name="history">Reads the saved runs.</param>
@@ -89,6 +91,9 @@ public sealed class RunHistoryViewModel : INotifyPropertyChanged
     /// <summary>Gets a value indicating whether the panel shows a saved run.</summary>
     public bool IsInspecting => inspected is not null;
 
+    /// <summary>Gets the ID of the inspected run, or null.</summary>
+    public ExecutionId? InspectedId => inspected?.Request.Id;
+
     /// <summary>Gets the saved source of the inspected run, or an empty string.</summary>
     public string InspectedSource => inspected?.Request.Source ?? string.Empty;
 
@@ -109,6 +114,7 @@ public sealed class RunHistoryViewModel : INotifyPropertyChanged
         ArgumentNullException.ThrowIfNull(id);
         experimentId = id;
         EndInspection();
+        Notice = string.Empty;
         await ReloadAsync(cancellationToken).ConfigureAwait(true);
     }
 
@@ -119,6 +125,10 @@ public sealed class RunHistoryViewModel : INotifyPropertyChanged
     public async Task InspectAsync(RunHistoryItem item, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(item);
+
+        // Each click, each end of an inspection and each experiment switch starts a new navigation. A read that
+        // finishes after a newer navigation started is stale, so it must not change the panel.
+        int mine = ++navigation;
         RunRecord? record;
         try
         {
@@ -126,7 +136,16 @@ public sealed class RunHistoryViewModel : INotifyPropertyChanged
         }
         catch (ExperimentStorageException)
         {
-            Notice = LOAD_FAILED_TEXT;
+            if (mine == navigation)
+            {
+                Notice = LOAD_FAILED_TEXT;
+            }
+
+            return;
+        }
+
+        if (mine != navigation)
+        {
             return;
         }
 
@@ -153,17 +172,29 @@ public sealed class RunHistoryViewModel : INotifyPropertyChanged
             return;
         }
 
+        int mine = navigation;
         isBusy = true;
         Raise(nameof(CanRerun));
         try
         {
             CompletedRun run = await service.RerunAsync(source, cancellationToken).ConfigureAwait(true);
-            results.Show(run.Record.Report, run.Record.CompletedAt);
-            Notice = run.StorageFailure is null ? string.Empty : NOT_SAVED_TEXT;
-            if (run.StorageFailure is null)
+            if (mine == navigation)
+            {
+                // The user is still on the saved run that started this rerun, so the new run replaces it in the panel.
+                inspected = run.Record;
+                results.Show(run.Record.Report, run.Record.CompletedAt);
+                RaiseInspectionChanged();
+                Notice = run.StorageFailure is null ? string.Empty : NOT_SAVED_TEXT;
+            }
+
+            if (run.StorageFailure is null && experimentId == source.Request.ExperimentId)
             {
                 await ReloadAsync(cancellationToken).ConfigureAwait(true);
             }
+        }
+        catch (OperationCanceledException)
+        {
+            // The caller canceled the run or the list read. The stored run, if any, is already in history.
         }
         finally
         {
@@ -175,6 +206,7 @@ public sealed class RunHistoryViewModel : INotifyPropertyChanged
     /// <summary>Stops showing a saved run and clears the result panel.</summary>
     public void EndInspection()
     {
+        navigation++;
         if (inspected is null)
         {
             return;
@@ -187,6 +219,7 @@ public sealed class RunHistoryViewModel : INotifyPropertyChanged
 
     private async Task ReloadAsync(CancellationToken cancellationToken)
     {
+        int mine = ++listVersion;
         IReadOnlyList<RunSummary> summaries;
         try
         {
@@ -194,8 +227,18 @@ public sealed class RunHistoryViewModel : INotifyPropertyChanged
         }
         catch (ExperimentStorageException)
         {
-            Items.Clear();
-            Notice = LOAD_FAILED_TEXT;
+            if (mine == listVersion)
+            {
+                Items.Clear();
+                Notice = LOAD_FAILED_TEXT;
+            }
+
+            return;
+        }
+
+        if (mine != listVersion)
+        {
+            // A newer reload started while this one waited. Its list is the right one.
             return;
         }
 

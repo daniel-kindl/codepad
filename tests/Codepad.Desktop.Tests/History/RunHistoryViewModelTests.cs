@@ -127,7 +127,7 @@ public sealed class RunHistoryViewModelTests
     }
 
     [Fact]
-    public async Task InspectingAnEntryThatIsGoneShowsANoticeAndKeepsTheLastInspection()
+    public async Task InspectingAnEntryThatIsGoneShowsANoticeAndShowsNothingElse()
     {
         RunRecord first = store.Seed(experiment, ExecutionOutcome.Success, 1);
         store.Seed(experiment, ExecutionOutcome.RuntimeFailed, 2);
@@ -182,5 +182,94 @@ public sealed class RunHistoryViewModelTests
 
         Assert.False(model.IsInspecting);
         Assert.Empty(model.Items);
+    }
+
+    [Fact]
+    public async Task ALateInspectionOfAnEarlierClickNeverReplacesTheLaterOne()
+    {
+        store.Seed(experiment, ExecutionOutcome.Success, 1);
+        RunRecord b = store.Seed(experiment, ExecutionOutcome.RuntimeFailed, 2);
+        RunHistoryViewModel model = NewModel();
+        await model.ShowExperimentAsync(experiment.Id, TestContext.Current.CancellationToken);
+        RunHistoryItem itemB = model.Items[0];
+        RunHistoryItem itemA = model.Items[1];
+        TaskCompletionSource gateA = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        store.BeforeGet = id => id == itemA.Id ? gateA.Task : Task.CompletedTask;
+
+        Task slow = model.InspectAsync(itemA, TestContext.Current.CancellationToken);
+        await model.InspectAsync(itemB, TestContext.Current.CancellationToken);
+        gateA.SetResult();
+        await slow;
+
+        Assert.Equal(b.Request.Source, model.InspectedSource);
+        Assert.Contains("Failed with an exception", results.StatusText, StringComparison.Ordinal);
+        Assert.Equal(b.Request.Id, model.InspectedId);
+    }
+
+    [Fact]
+    public async Task ALateListOfAnEarlierExperimentNeverReplacesTheLaterList()
+    {
+        store.Seed(experiment, ExecutionOutcome.Success, 1);
+        Experiment other = Experiment.Create(ExperimentId.New(), OperationKind.CSharp, "Other", "2", Start);
+        RunRecord otherRun = store.Seed(other, ExecutionOutcome.Success, 2);
+        RunHistoryViewModel model = NewModel();
+        TaskCompletionSource gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        store.BeforeList = id => id == experiment.Id ? gate.Task : Task.CompletedTask;
+
+        Task slow = model.ShowExperimentAsync(experiment.Id, TestContext.Current.CancellationToken);
+        await model.ShowExperimentAsync(other.Id, TestContext.Current.CancellationToken);
+        gate.SetResult();
+        await slow;
+
+        Assert.Equal([otherRun.Request.Id], model.Items.Select(item => item.Id));
+    }
+
+    [Fact]
+    public async Task ARerunThatEndsAfterTheUserLeftDoesNotShowItsResultInTheOtherExperiment()
+    {
+        store.Seed(experiment, ExecutionOutcome.Success, 1);
+        RunHistoryViewModel model = NewModel();
+        await model.ShowExperimentAsync(experiment.Id, TestContext.Current.CancellationToken);
+        await model.InspectAsync(model.Items[0], TestContext.Current.CancellationToken);
+        TaskCompletionSource gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        runner.Gate = gate.Task;
+
+        Task rerun = model.RerunAsync(TestContext.Current.CancellationToken);
+        await model.ShowExperimentAsync(ExperimentId.New(), TestContext.Current.CancellationToken);
+        gate.SetResult();
+        await rerun;
+
+        Assert.False(model.IsInspecting);
+        Assert.Empty(model.Items);
+        Assert.Equal(ResultsViewModel.NO_RUN_TEXT, results.StatusText);
+    }
+
+    [Fact]
+    public async Task AfterARerunThePanelShowsTheNewRunAsTheSavedRun()
+    {
+        RunRecord old = store.Seed(experiment, ExecutionOutcome.Success, 1);
+        RunHistoryViewModel model = NewModel();
+        await model.ShowExperimentAsync(experiment.Id, TestContext.Current.CancellationToken);
+        await model.InspectAsync(model.Items[0], TestContext.Current.CancellationToken);
+
+        await model.RerunAsync(TestContext.Current.CancellationToken);
+
+        Assert.NotEqual(old.Request.Id, model.InspectedId);
+        Assert.Equal(runner.Requests.Single().Id, model.InspectedId);
+        Assert.Equal(old.Request.Source, model.InspectedSource);
+    }
+
+    [Fact]
+    public async Task CancelingTheReloadAfterARerunDoesNotThrow()
+    {
+        store.Seed(experiment, ExecutionOutcome.Success, 1);
+        RunHistoryViewModel model = NewModel();
+        await model.ShowExperimentAsync(experiment.Id, TestContext.Current.CancellationToken);
+        await model.InspectAsync(model.Items[0], TestContext.Current.CancellationToken);
+        store.BeforeList = _ => throw new OperationCanceledException();
+
+        await model.RerunAsync(TestContext.Current.CancellationToken);
+
+        Assert.Single(runner.Requests);
     }
 }
