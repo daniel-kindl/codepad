@@ -38,12 +38,16 @@ public sealed class ResultsViewModel : INotifyPropertyChanged
     /// <summary>The notice when the clipboard did not take the text.</summary>
     internal const string COPY_FAILED_TEXT = "CodePad couldn't copy to the clipboard.";
 
+    /// <summary>The notice above a value that comes from an earlier run.</summary>
+    internal const string PREVIOUS_RUN_TEXT = "This run has no value of its own. The panel shows the value of the last successful run.";
+
     private static readonly JsonSerializerOptions s_copyOptions = new JsonSerializerOptions { WriteIndented = true };
 
     private string statusText = NO_RUN_TEXT;
     private string statusKind = "idle";
     private string executionText = string.Empty;
     private string emptyText = EMPTY_RESULT_TEXT;
+    private string previousText = PREVIOUS_RUN_TEXT;
     private string copyNotice = string.Empty;
     private ResultPresentation presentation;
     private string valueText = string.Empty;
@@ -96,6 +100,13 @@ public sealed class ResultsViewModel : INotifyPropertyChanged
     {
         get => emptyText;
         private set => Set(ref emptyText, value);
+    }
+
+    /// <summary>Gets the notice that tells the user that the value is from an earlier result. It shows only while <see cref="IsShowingPrevious"/> is true.</summary>
+    public string PreviousText
+    {
+        get => previousText;
+        private set => Set(ref previousText, value);
     }
 
     /// <summary>Gets how the value is shown.</summary>
@@ -204,6 +215,7 @@ public sealed class ResultsViewModel : INotifyPropertyChanged
     public void Show(RunReport report, DateTimeOffset completedAt)
     {
         ArgumentNullException.ThrowIfNull(report);
+        PreviousText = PREVIOUS_RUN_TEXT;
         (StatusText, StatusKind) = Describe(report.Result.Outcome);
         ExecutionText = string.Create(CultureInfo.InvariantCulture, $"Run {report.ExecutionId} · finished {completedAt.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
 
@@ -237,9 +249,63 @@ public sealed class ResultsViewModel : INotifyPropertyChanged
         }
     }
 
+    /// <summary>Shows the value of a live preview. A preview has no run, no output and no execution ID.</summary>
+    /// <param name="value">The bounded value.</param>
+    /// <param name="statusText">The status phrase.</param>
+    /// <param name="infoText">The line under the status.</param>
+    public void ShowPreview(ResultNode value, string statusText, string infoText)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        ArgumentNullException.ThrowIfNull(statusText);
+        ArgumentNullException.ThrowIfNull(infoText);
+        ResetPreviewParts(statusText, "success", infoText);
+        ShowValue(value, previous: false);
+    }
+
+    /// <summary>
+    /// Shows that a live preview failed. The panel keeps the value of the last good preview and says so. When it has no
+    /// earlier value, it shows <paramref name="emptyText"/>.
+    /// </summary>
+    /// <param name="problem">The error.</param>
+    /// <param name="statusText">The status phrase.</param>
+    /// <param name="previousText">The notice for an earlier value.</param>
+    /// <param name="emptyText">The text when there is no value to show.</param>
+    public void ShowPreviewProblem(Diagnostic problem, string statusText, string previousText, string emptyText)
+    {
+        ArgumentNullException.ThrowIfNull(problem);
+        ArgumentNullException.ThrowIfNull(statusText);
+        ArgumentNullException.ThrowIfNull(previousText);
+        ArgumentNullException.ThrowIfNull(emptyText);
+        ResetPreviewParts(statusText, "error", string.Empty);
+        Diagnostics.Add(ToRow(problem));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DiagnosticsTitle)));
+        PreviousText = previousText;
+        if (shownValue is not null)
+        {
+            IsShowingPrevious = true;
+        }
+        else
+        {
+            EmptyText = emptyText;
+        }
+    }
+
+    /// <summary>Clears the live preview and shows a neutral text.</summary>
+    /// <param name="statusText">The status phrase.</param>
+    /// <param name="emptyText">The text of the empty result.</param>
+    public void ClearPreview(string statusText, string emptyText)
+    {
+        ArgumentNullException.ThrowIfNull(statusText);
+        ArgumentNullException.ThrowIfNull(emptyText);
+        ResetPreviewParts(statusText, "idle", string.Empty);
+        ShowValue(null, previous: false);
+        EmptyText = emptyText;
+    }
+
     /// <summary>Clears everything, for example when another experiment opens.</summary>
     public void Clear()
     {
+        PreviousText = PREVIOUS_RUN_TEXT;
         StatusText = NO_RUN_TEXT;
         StatusKind = "idle";
         ExecutionText = string.Empty;
@@ -257,6 +323,20 @@ public sealed class ResultsViewModel : INotifyPropertyChanged
     /// <summary>Gets the bounded value as indented JSON, for the Copy command.</summary>
     /// <returns>The JSON, or null when there is no value.</returns>
     public string? GetCopyText() => shownValue is null ? null : JsonSerializer.Serialize(shownValue, s_copyOptions);
+
+    private void ResetPreviewParts(string statusText, string statusKind, string infoText)
+    {
+        StatusText = statusText;
+        StatusKind = statusKind;
+        ExecutionText = infoText;
+        Diagnostics.Clear();
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DiagnosticsTitle)));
+        Stdout = string.Empty;
+        Stderr = string.Empty;
+        StdoutNote = string.Empty;
+        StderrNote = string.Empty;
+        CopyNotice = string.Empty;
+    }
 
     private void ShowValue(ResultNode? value, bool previous)
     {

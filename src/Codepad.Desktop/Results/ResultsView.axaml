@@ -36,7 +36,7 @@
         <DockPanel>
           <TextBlock DockPanel.Dock="Top" Classes="notice"
                      IsVisible="{Binding IsShowingPrevious}"
-                     Text="This run has no value of its own. The panel shows the value of the last successful run." />
+                     Text="{Binding PreviousText}" />
           <TextBlock DockPanel.Dock="Top" Classes="notice"
                      IsVisible="{Binding TruncationText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                      Text="{Binding TruncationText}"

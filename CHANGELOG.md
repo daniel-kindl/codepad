@@ -15,6 +15,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The
 
 ### Added
 
+- Live JSON tool (#9): `JsonEvaluator` checks and formats JSON with `System.Text.Json` after a short pause in
+  typing, with no Run command. It limits the size to 1,000,000 bytes and the depth to 64. A valid document
+  shows as indented text and as a tree in the result panel. An invalid document shows the line and column of
+  the error, and the input stays as typed. A late result of an old edit is dropped. A JSON experiment saves
+  and restores like a C# experiment. Live evaluation makes no history record. The tool view is not in the
+  main window yet.
 - Run history (#8): `RunHistoryService` runs a C# snapshot, or runs a saved snapshot again, and stores one
   immutable record for each run: the source, the input, the policy, the time, the outcome, the problems, the
   bounded value and the output. Schema step 2 replaces the empty reserved `execution_history` table. History
