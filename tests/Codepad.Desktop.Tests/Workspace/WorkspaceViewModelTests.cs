@@ -220,6 +220,7 @@ public sealed class WorkspaceViewModelTests
         Assert.Single(fixture.Model.Tabs);
         Assert.Contains("Close it again to discard", fixture.Model.Notice, StringComparison.Ordinal);
 
+        fixture.Time.Advance(TimeSpan.FromSeconds(2));
         Assert.True(await fixture.Model.CloseAsync(tab, TestContext.Current.CancellationToken));
         Assert.Empty(fixture.Model.Tabs);
     }
@@ -302,5 +303,105 @@ public sealed class WorkspaceViewModelTests
         }
 
         Assert.Equal("typed", fixture.Experiments.Stored(tab.Id)?.Source);
+    }
+
+    [Fact]
+    public async Task AnEditAfterTheWarningBringsTheWarningBack()
+    {
+        WorkspaceFixture fixture = new WorkspaceFixture();
+        await fixture.Model.RestoreAsync(TestContext.Current.CancellationToken);
+        CSharpTabViewModel tab = Assert.IsType<CSharpTabViewModel>(fixture.Model.Tabs[0]);
+        await tab.FlushAsync(TestContext.Current.CancellationToken);
+        fixture.Experiments.Failure = new ExperimentStorageException("disk_full");
+        tab.Editor.OnTextEdited("first");
+        Assert.False(await fixture.Model.CloseAsync(tab, TestContext.Current.CancellationToken));
+
+        // The user types more. The new text has never had a warning, so the first request must warn again.
+        tab.Editor.OnTextEdited("second, more valuable");
+
+        Assert.False(await fixture.Model.CloseAsync(tab, TestContext.Current.CancellationToken));
+        Assert.Single(fixture.Model.Tabs);
+        fixture.Time.Advance(TimeSpan.FromSeconds(2));
+        Assert.True(await fixture.Model.CloseAsync(tab, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task AWarningThatAnEarlierSuccessfulSaveClearedComesBackAfterANewFailure()
+    {
+        WorkspaceFixture fixture = new WorkspaceFixture();
+        await fixture.Model.RestoreAsync(TestContext.Current.CancellationToken);
+        CSharpTabViewModel tab = Assert.IsType<CSharpTabViewModel>(fixture.Model.Tabs[0]);
+        await tab.FlushAsync(TestContext.Current.CancellationToken);
+        fixture.Experiments.Failure = new ExperimentStorageException("busy");
+        tab.Editor.OnTextEdited("one");
+        Assert.False(await fixture.Model.CloseAsync(tab, TestContext.Current.CancellationToken));
+        fixture.Experiments.Failure = null;
+        tab.Editor.OnTextEdited("two");
+        await tab.FlushAsync(TestContext.Current.CancellationToken);
+        fixture.Experiments.Failure = new ExperimentStorageException("busy");
+        tab.Editor.OnTextEdited("three");
+
+        Assert.False(await fixture.Model.CloseAsync(tab, TestContext.Current.CancellationToken));
+        Assert.Single(fixture.Model.Tabs);
+    }
+
+    [Fact]
+    public async Task TwoCloseRequestsAtOnceAreNotACloseAgain()
+    {
+        WorkspaceFixture fixture = new WorkspaceFixture();
+        await fixture.Model.RestoreAsync(TestContext.Current.CancellationToken);
+        CSharpTabViewModel tab = Assert.IsType<CSharpTabViewModel>(fixture.Model.Tabs[0]);
+        await tab.FlushAsync(TestContext.Current.CancellationToken);
+        fixture.Experiments.Failure = new ExperimentStorageException("disk_full");
+        tab.Editor.OnTextEdited("precious");
+
+        bool[] results = await Task.WhenAll(
+            fixture.Model.CloseAsync(tab, TestContext.Current.CancellationToken),
+            fixture.Model.CloseAsync(tab, TestContext.Current.CancellationToken));
+
+        Assert.Equal([false, false], results);
+        Assert.Single(fixture.Model.Tabs);
+        Assert.Equal("precious", tab.Source);
+
+        // A request that comes later, after the user could read the warning, discards.
+        fixture.Time.Advance(TimeSpan.FromSeconds(2));
+        Assert.True(await fixture.Model.CloseAsync(tab, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task WindowCloseWarnsAgainAfterANewEdit()
+    {
+        WorkspaceFixture fixture = new WorkspaceFixture();
+        await fixture.Model.RestoreAsync(TestContext.Current.CancellationToken);
+        CSharpTabViewModel tab = Assert.IsType<CSharpTabViewModel>(fixture.Model.Tabs[0]);
+        await tab.FlushAsync(TestContext.Current.CancellationToken);
+        fixture.Experiments.Failure = new ExperimentStorageException("disk_full");
+        tab.Editor.OnTextEdited("one");
+        Assert.False(await fixture.Model.TryCloseAllAsync(TestContext.Current.CancellationToken));
+        fixture.Time.Advance(TimeSpan.FromSeconds(2));
+        Assert.True(await fixture.Model.TryCloseAllAsync(TestContext.Current.CancellationToken));
+
+        tab.Editor.OnTextEdited("two");
+
+        Assert.False(await fixture.Model.TryCloseAllAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task AFailedReadOfTheExperimentsDoesNotReplaceTheStoredSession()
+    {
+        WorkspaceFixture fixture = new WorkspaceFixture();
+        Experiment a = fixture.Seed(OperationKind.CSharp, "A", "1");
+        Experiment b = fixture.Seed(OperationKind.Json, "B", "[]");
+        await fixture.Session.SaveAsync(Codepad.Application.Workspace.TabSet.Empty.OpenTab(a.Id).OpenTab(b.Id), TestContext.Current.CancellationToken);
+        string before = fixture.Preferences.Values[Codepad.Application.Workspace.SessionStore.KEY];
+        fixture.Experiments.ListFailure = new ExperimentStorageException("busy");
+
+        await fixture.Model.RestoreAsync(TestContext.Current.CancellationToken);
+        await fixture.Model.NewExperimentAsync(OperationKind.Json, TestContext.Current.CancellationToken);
+        await fixture.Model.SessionSaved;
+
+        Assert.Equal(before, fixture.Preferences.Values[Codepad.Application.Workspace.SessionStore.KEY]);
+        Assert.Contains("couldn't read", fixture.Model.Notice, StringComparison.Ordinal);
+        Assert.Contains("busy", fixture.Failures);
     }
 }

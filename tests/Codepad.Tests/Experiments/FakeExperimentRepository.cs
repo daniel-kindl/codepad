@@ -15,6 +15,9 @@ internal sealed class FakeExperimentRepository : IExperimentRepository
     /// <summary>Gets or sets the exception that the next writes throw. Null means the writes work.</summary>
     public ExperimentStorageException? Failure { get; set; }
 
+    /// <summary>Gets or sets the exception that the list call throws. Null means the list works.</summary>
+    public ExperimentStorageException? ListFailure { get; set; }
+
     /// <summary>Gets the number of writes that started.</summary>
     public int StartedWrites { get; private set; }
 
@@ -53,5 +56,6 @@ internal sealed class FakeExperimentRepository : IExperimentRepository
 
     public Task<Experiment?> GetAsync(ExperimentId id, CancellationToken cancellationToken = default) => Task.FromResult(stored.GetValueOrDefault(id));
 
-    public Task<IReadOnlyList<Experiment>> ListAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Experiment>>([.. stored.Values]);
+    public Task<IReadOnlyList<Experiment>> ListAsync(CancellationToken cancellationToken = default) =>
+        ListFailure is null ? Task.FromResult<IReadOnlyList<Experiment>>([.. stored.Values]) : Task.FromException<IReadOnlyList<Experiment>>(ListFailure);
 }

@@ -29,7 +29,15 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IAsyncDisposabl
     private readonly Func<JsonToolViewModel> createTool;
     private readonly Action<Action> post;
     private readonly Action<string> reportFailure;
-    private readonly HashSet<ExperimentId> discardArmed = [];
+    private const int MAX_FLUSH_PASSES = 5;
+
+    // A double click or a held key repeats a request within this time. Only a later request means "discard".
+    private static readonly TimeSpan _warningTime = TimeSpan.FromSeconds(1);
+
+    // A tab is armed for one buffer: the revision that failed to save. A new edit has a new revision, so the warning returns.
+    private readonly Dictionary<ExperimentId, (long Revision, DateTimeOffset At)> discardArmed = [];
+    private readonly HashSet<ExperimentId> closing = [];
+    private bool sessionWritesSuspended;
     private TabSet tabs = TabSet.Empty;
     private ExperimentTabViewModel? activeTab;
     private string notice = string.Empty;
@@ -128,6 +136,9 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IAsyncDisposabl
         {
             reportFailure(exception.Reason);
             Notice = "CodePad couldn't read your saved experiments.";
+
+            // The stored session is still good. A write now would replace it with the one tab that the app opens next.
+            sessionWritesSuspended = true;
         }
 
         TabSet restored;
@@ -258,21 +269,39 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IAsyncDisposabl
     public async Task<bool> CloseAsync(ExperimentTabViewModel tab, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(tab);
-        await tab.FlushAsync(cancellationToken).ConfigureAwait(true);
-        if (tab.HasSaveProblem && discardArmed.Add(tab.Id))
+
+        // A double click or a held key sends the request twice. The second one must not count as "close again".
+        if (!closing.Add(tab.Id))
         {
-            Notice = $"\"{tab.Title}\" is not saved. Close it again to discard the unsaved text.";
             return false;
         }
 
-        if (!Tabs.Contains(tab))
+        try
         {
-            return true;
+            await FlushSettledAsync(tab, cancellationToken).ConfigureAwait(true);
+
+            // No await from here to the removal: no edit can come between the check and the close.
+            if (tab.HasSaveProblem && !IsReadyToDiscard(tab))
+            {
+                Warn(tab);
+                Notice = $"\"{tab.Title}\" is not saved. Close it again to discard the unsaved text.";
+                return false;
+            }
+
+            if (!Tabs.Contains(tab))
+            {
+                return true;
+            }
+
+            discardArmed.Remove(tab.Id);
+            Notice = string.Empty;
+            Apply(tabs.Close(tab.Id), removed: tab);
+        }
+        finally
+        {
+            closing.Remove(tab.Id);
         }
 
-        discardArmed.Remove(tab.Id);
-        Notice = string.Empty;
-        Apply(tabs.Close(tab.Id), removed: tab);
         await tab.DisposeAsync().ConfigureAwait(true);
         return true;
     }
@@ -282,12 +311,27 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IAsyncDisposabl
     /// <returns>True when the window can close. False once when a tab could not save. The next request returns true.</returns>
     public async Task<bool> TryCloseAllAsync(CancellationToken cancellationToken = default)
     {
-        bool blocked = false;
-        foreach (ExperimentTabViewModel tab in Tabs.ToList())
+        // An edit can arrive while a later tab saves, so the pass repeats until no tab has unsaved edits.
+        for (int pass = 0; pass < MAX_FLUSH_PASSES; pass++)
         {
-            await tab.FlushAsync(cancellationToken).ConfigureAwait(true);
-            if (tab.HasSaveProblem && discardArmed.Add(tab.Id))
+            foreach (ExperimentTabViewModel tab in Tabs.ToList())
             {
+                await tab.FlushAsync(cancellationToken).ConfigureAwait(true);
+            }
+
+            if (!Tabs.Any(tab => tab.IsUnsaved))
+            {
+                break;
+            }
+        }
+
+        // No await from here to the return: the answer describes the tabs as they are now.
+        bool blocked = false;
+        foreach (ExperimentTabViewModel tab in Tabs)
+        {
+            if (tab.HasSaveProblem && !IsReadyToDiscard(tab))
+            {
+                Warn(tab);
                 Notice = $"\"{tab.Title}\" is not saved. Close CodePad again to discard the unsaved text.";
                 blocked = true;
             }
@@ -308,6 +352,34 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IAsyncDisposabl
         foreach (ExperimentTabViewModel tab in Tabs.ToList())
         {
             await tab.DisposeAsync().ConfigureAwait(true);
+        }
+    }
+
+    // The warning belongs to one buffer (its revision) and needs a moment to be read. A new edit starts it again.
+    private bool IsReadyToDiscard(ExperimentTabViewModel tab) =>
+        discardArmed.TryGetValue(tab.Id, out (long Revision, DateTimeOffset At) armed)
+        && armed.Revision == tab.Revision
+        && timeProvider.GetUtcNow() - armed.At >= _warningTime;
+
+    private void Warn(ExperimentTabViewModel tab)
+    {
+        // A repeated request for the same buffer keeps the first time, so the wait does not restart.
+        if (!discardArmed.TryGetValue(tab.Id, out (long Revision, DateTimeOffset At) armed) || armed.Revision != tab.Revision)
+        {
+            discardArmed[tab.Id] = (tab.Revision, timeProvider.GetUtcNow());
+        }
+    }
+
+    // Saves until the tab has no pending edit. A failed save ends the loop: the state is then Error.
+    private static async Task FlushSettledAsync(ExperimentTabViewModel tab, CancellationToken cancellationToken)
+    {
+        for (int pass = 0; pass < MAX_FLUSH_PASSES; pass++)
+        {
+            await tab.FlushAsync(cancellationToken).ConfigureAwait(true);
+            if (!tab.IsUnsaved)
+            {
+                return;
+            }
         }
     }
 
@@ -353,7 +425,10 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IAsyncDisposabl
 
         ActiveTab = next.Active is ExperimentId active ? Find(active) : null;
         Raise(nameof(HasTabs));
-        QueueSessionWrite(next);
+        if (!sessionWritesSuspended)
+        {
+            QueueSessionWrite(next);
+        }
     }
 
     private void QueueSessionWrite(TabSet snapshot)

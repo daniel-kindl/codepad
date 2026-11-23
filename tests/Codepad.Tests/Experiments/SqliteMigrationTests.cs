@@ -159,6 +159,26 @@ public sealed class SqliteMigrationTests : IDisposable
     }
 
     [Fact]
+    public void UpgradingADatabaseWithDataToTheLatestStepKeepsExperimentsHistoryAndSettings()
+    {
+        Migration[] released = [.. SqliteMigrations.All.Where(migration => migration.Version <= 2)];
+        new SqliteDatabase(temp.Path, released, null).Migrate();
+        using (SqliteConnection connection = temp.RawConnection())
+        {
+            using SqliteCommand command = connection.CreateCommand();
+            command.CommandText = "INSERT INTO settings (key, value) VALUES ('keep', 'me');";
+            command.ExecuteNonQuery();
+        }
+
+        temp.Open();
+
+        Assert.Equal(SqliteMigrations.All[^1].Version, Scalar("PRAGMA user_version;"));
+        Assert.Equal(0, Scalar("SELECT COUNT(*) FROM sqlite_master WHERE name = 'tab_session';"));
+        Assert.Equal(1, Scalar("SELECT COUNT(*) FROM settings WHERE key = 'keep';"));
+        Assert.Equal(1, Scalar("SELECT COUNT(*) FROM sqlite_master WHERE name = 'execution_history';"));
+    }
+
+    [Fact]
     public void FileThatIsNotADatabaseIsReportedAsCorrupt()
     {
         File.WriteAllText(temp.Path, new string('z', 4096));

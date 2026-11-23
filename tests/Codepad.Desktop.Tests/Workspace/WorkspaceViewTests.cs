@@ -192,6 +192,8 @@ public sealed class WorkspaceViewTests
         Assert.False(closed);
         Assert.Contains("Close CodePad again", Named<TextBlock>(window, "Tab notice").Text, StringComparison.Ordinal);
 
+        // The second request must come after the user could read the warning.
+        await Task.Delay(1100, TestContext.Current.CancellationToken);
         window.Close();
         await WaitAsync(() => closed);
     }

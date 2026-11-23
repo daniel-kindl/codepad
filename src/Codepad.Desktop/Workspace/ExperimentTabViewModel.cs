@@ -82,6 +82,12 @@ public abstract class ExperimentTabViewModel : INotifyPropertyChanged, IAsyncDis
         _ => string.Empty,
     };
 
+    /// <summary>Gets the revision of the current buffer.</summary>
+    public long Revision => session.Current.Revision;
+
+    /// <summary>Gets a value indicating whether the buffer has edits that storage does not hold yet and that no failed save has stopped.</summary>
+    public bool IsUnsaved => session.State is SaveState.Dirty or SaveState.Saving;
+
     /// <summary>Gets a value indicating whether the last save failed. The text is still in the editor.</summary>
     public bool HasSaveProblem => session.State == SaveState.Error;
 

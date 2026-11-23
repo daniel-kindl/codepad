@@ -356,9 +356,13 @@ failure without a response is a Warning. The supervisor never logs source, outpu
   scroll position are in the view of the tab. The app keeps one view for each open tab and hides the views of
   the other tabs, so switching changes none of them. They are not saved: after a restart, the caret is at the start.
 - **A failed save stays visible.** The tab shows the word "Save failed" next to its title, and the status
-  region shows the reason. The tab does not become clean. Closing a tab or the window saves first. When the
-  save fails, the first close request keeps the tab open and says so. The second request closes it and discards
-  the unsaved text. A new experiment is saved when it opens, so the session lists only experiments that exist.
+  region shows the reason. The tab does not become clean. Closing a tab or the window saves first, and it
+  repeats the save until no edit is pending. When the save fails, the first close request keeps the tab open and
+  says so. A later request, at least one second after the warning and for the same buffer, closes it and discards
+  the unsaved text. A new edit starts the warning again. Two requests at once, such as a double click, count as one.
+  A window close during an OS shutdown or an app shutdown does not wait for the save.
+- **A failed read keeps the stored session.** When the app cannot read the experiments at startup, it does not
+  write the session in that run. The stored tab list stays for the next start. A new experiment is saved when it opens, so the session lists only experiments that exist.
 - **Keyboard.** Ctrl+Tab and Ctrl+Shift+Tab cycle the tabs. Ctrl+W closes the active tab. Ctrl+Shift+PageUp and
   Ctrl+Shift+PageDown move it. The mouse can drag a tab, use the close button or use the context menu (move
   left, move right, close). The tab strip scrolls when the tabs do not fit.
