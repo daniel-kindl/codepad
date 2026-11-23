@@ -43,6 +43,13 @@ A new execution of the snapshot of an earlier execution request. It gets a new I
 How a completed execution ended: success, compilation failed, runtime failed, canceled, timed out or worker
 failed.
 
+**Worker**:
+The child process that compiles and runs one C# snapshot. A new worker starts for each run. It is a crash
+boundary and not a security sandbox.
+
+**Run report**:
+What the app learns from one C# run: the result, the captured stdout and stderr, and the host facts.
+
 **Operation policy**:
 The rules for one operation kind: what can start it, its time limit and its result limits.
 

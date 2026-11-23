@@ -183,6 +183,37 @@
         "resolved": "0.11.6",
         "contentHash": "NdNWGDiZ6eS/Mf/9+QHR91cj1K7Hy+PX9yrHI/zM7xFYuj9IWT2uxtB6sCHjrnxAeLV9fut1R6zHDUGKX6f9lQ=="
       },
+      "Microsoft.CodeAnalysis.Analyzers": {
+        "type": "Transitive",
+        "resolved": "5.9.0",
+        "contentHash": "jMNOo+uoBGiWbZ6Wx0dqU93r5WD4P5WnIRZdoz67RP5N09OUetHgAbo4L7hihOH1NHdD2TgW5/l+SP4gQukwww=="
+      },
+      "Microsoft.CodeAnalysis.Common": {
+        "type": "Transitive",
+        "resolved": "5.12.0",
+        "contentHash": "0C7o9ys497xp0kZ64sL7C6nY/5WPQlxia28VlezdonBmjxbC6mIovAYs8mBoh/QooxBBZQCo/wMuZnV1kNk9GA==",
+        "dependencies": {
+          "Microsoft.CodeAnalysis.Analyzers": "5.9.0"
+        }
+      },
+      "Microsoft.CodeAnalysis.CSharp": {
+        "type": "Transitive",
+        "resolved": "5.12.0",
+        "contentHash": "6W6vBcpQFjlxog+KUGNM2fFy+XA2StC1PtnkEkechk68vFy3a28tGjEdnoA7NrxhMdr8a+zh/AmiUtBAmdkQPg==",
+        "dependencies": {
+          "Microsoft.CodeAnalysis.Analyzers": "5.9.0",
+          "Microsoft.CodeAnalysis.Common": "[5.12.0]"
+        }
+      },
+      "Microsoft.CodeAnalysis.Scripting.Common": {
+        "type": "Transitive",
+        "resolved": "5.12.0",
+        "contentHash": "fqAvERISYmZP7gxaFsCI8PpeGVI8LnodlsGLtrcuKtk0ldVvTeSkbryM10VfI3S6f5DbUCpC40oSMsvyZkA1Kg==",
+        "dependencies": {
+          "Microsoft.CodeAnalysis.Analyzers": "5.9.0",
+          "Microsoft.CodeAnalysis.Common": "[5.12.0]"
+        }
+      },
       "Microsoft.Data.Sqlite.Core": {
         "type": "Transitive",
         "resolved": "11.0.0",
@@ -300,6 +331,13 @@
       "codepad.application": {
         "type": "Project",
         "dependencies": {
+          "Codepad.Contracts": "[0.1.0, )",
+          "Codepad.Domain": "[0.1.0, )"
+        }
+      },
+      "codepad.contracts": {
+        "type": "Project",
+        "dependencies": {
           "Codepad.Domain": "[0.1.0, )"
         }
       },
@@ -311,6 +349,25 @@
         "dependencies": {
           "Codepad.Application": "[0.1.0, )",
           "Microsoft.Data.Sqlite": "[11.0.0, )"
+        }
+      },
+      "codepad.worker": {
+        "type": "Project",
+        "dependencies": {
+          "Codepad.Contracts": "[0.1.0, )",
+          "Microsoft.CodeAnalysis.CSharp.Scripting": "[5.12.0, )"
+        }
+      },
+      "Microsoft.CodeAnalysis.CSharp.Scripting": {
+        "type": "CentralTransitive",
+        "requested": "[5.12.0, )",
+        "resolved": "5.12.0",
+        "contentHash": "OuIiuBReOEp9pt6xWItM0tM6RDWigemmDkcV2yEzx6YMoWxfaogSpZUZQRciGAYA6H+KR4ZnTEZPc0YiyGVCSA==",
+        "dependencies": {
+          "Microsoft.CodeAnalysis.Analyzers": "5.9.0",
+          "Microsoft.CodeAnalysis.CSharp": "[5.12.0]",
+          "Microsoft.CodeAnalysis.Common": "[5.12.0]",
+          "Microsoft.CodeAnalysis.Scripting.Common": "[5.12.0]"
         }
       },
       "Microsoft.Data.Sqlite": {

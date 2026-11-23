@@ -11,7 +11,8 @@ For the product scope, see [PRODUCT.md](PRODUCT.md).
 [#1] created four projects: `Codepad.Domain`, `Codepad.Application`, `Codepad.Infrastructure` and
 `Codepad.Desktop`. Each module has its own assembly. [#2] added the domain model. See
 [Domain model](#domain-model). [#3] added storage. See
-[Storage and retention](#storage-and-retention). [#4] creates Contracts and Worker. [#19] creates
+[Storage and retention](#storage-and-retention). [#4] added Contracts and Worker. See
+[C# script semantics](#c-script-semantics) and [Worker protocol](#worker-protocol). [#19] creates
 the CLI.
 
 The Desktop app opens one window with a menu, a workspace region and a status region. At startup
@@ -26,30 +27,34 @@ assembly where that has a reason.
 | Module | Holds | Must not depend on |
 | --- | --- | --- |
 | Domain | Experiment, execution request, outcomes, diagnostics, `ResultNode`, policies. See [#2]. | Avalonia, Roslyn, SQLite, OS APIs |
-| Application | Use cases and the interfaces that they need, for example `IUpdateService`. | Avalonia, SQLite, OS APIs |
-| Infrastructure | Adapters for IO: SQLite storage, the worker supervisor, the GitHub Releases client, the update verifier. | Desktop |
-| Contracts | The versioned messages between the app and the worker. See [#4]. | Proposed: Desktop, Infrastructure. See V-13. |
-| Worker | The child process that compiles and runs one C# snippet with Roslyn. See [#4]. | Proposed: Desktop, Infrastructure, Application. See V-13. |
+| Application | Use cases and the interfaces that they need, for example `ICSharpRunner` and `IUpdateService`. | Avalonia, SQLite, Roslyn, OS APIs |
+| Infrastructure | Adapters for IO: SQLite storage, the worker supervisor (`WorkerSupervisor`), the GitHub Releases client, the update verifier. | Desktop, Roslyn |
+| Contracts | The versioned messages between the app and the worker, and the frame codec. See [#4]. | Desktop, Infrastructure, Application, Worker, Roslyn, SQLite, Avalonia |
+| Worker | The child process that compiles and runs one C# snippet with Roslyn. See [#4]. | Desktop, Infrastructure, Application, SQLite, Avalonia |
 | Desktop | The Avalonia UI and the composition root. | (the composition root can use all modules) |
 | CLI | The `codepad` command for agents and scripts. A second composition root. See [#19]. | Desktop |
 
 The diagram shows which module uses which module. Domain uses no other module. Desktop and CLI
 are composition roots. They share the same use cases.
 
-The rows and the arrows for Contracts and Worker are **proposed**. No issue states them. [#1], [#2] and
-[#4] decide them. See V-13 in [Open validation questions](#open-validation-questions).
+Application and Infrastructure use Contracts for the messages and the run report. Contracts uses
+Domain to carry `ResultNode`, diagnostics and outcomes. Worker uses only Contracts, Domain and Roslyn.
+Desktop has a build reference to Worker, so that the build copies the worker and Roslyn next to the
+app. The app starts the worker as a child process. It never loads the worker assembly. See V-13.
 
 ```mermaid
 flowchart TD
     Desktop --> Application
     Desktop --> Infrastructure
+    Desktop -. copies .-> Worker
     CLI --> Application
     CLI --> Infrastructure
     Infrastructure --> Application
-    Infrastructure -. proposed .-> Contracts
+    Infrastructure --> Contracts
     Application --> Domain
-    Contracts -. proposed .-> Domain
-    Worker -. proposed .-> Contracts
+    Application --> Contracts
+    Contracts --> Domain
+    Worker --> Contracts
 ```
 
 Tests check the dependency direction. See [#1] and [#2].
@@ -79,7 +84,10 @@ Shared code does not call OS-specific APIs. Each item below is behind a small ad
 and a Windows implementation:
 
 - Data and config folders: `AppFolderLocator` in Infrastructure. See [#1], [#3] and [#13].
-- Worker start, process tree stop and pipes. See [#4] and [#14].
+- Worker start, process tree stop and pipes: `WorkerSupervisor` and `WorkerLaunchOptions` in
+  Infrastructure. They use `System.Diagnostics.Process` with no shell. `Process.Kill(entireProcessTree)`
+  stops the tree on both OS. The host program comes from the running runtime, not from a path rule.
+  See [#4] and [#14].
 - Key handling. See [#13].
 - Update install, restart and rollback (`IUpdateInstaller`). See [#17].
 
@@ -171,6 +179,70 @@ Rules for the run. See [#4] and [#7].
 - When a newer revision exists, the app drops the old result, also if it could not cancel the work.
 - A parse error has a line and a position. The input stays as the user typed it.
 
+### C# script semantics
+
+[#4] chose Roslyn scripting (`Microsoft.CodeAnalysis.CSharp.Scripting`). See V-03.
+
+- The source is a script: top-level statements, local functions and top-level `await`. It is not a
+  project and it has no `Main`.
+- The value of the last expression is the result. A script that ends with a statement, or that
+  returns `null`, has no value.
+- The default references are all managed assemblies of the shared .NET runtime that runs the worker.
+  The default imports are `System`, `System.Collections.Generic`, `System.IO`, `System.Linq`,
+  `System.Text`, `System.Threading` and `System.Threading.Tasks`.
+- The language version is the latest version that the Roslyn package supports. The report records it.
+- v0.1 has no NuGet packages and no project references.
+- `Console.Out` and `Console.Error` write to bounded buffers. `Console.In` is empty.
+- The working directory of a run is one stable folder that the app gives to the supervisor.
+- Roslyn compiles the whole script first. The entry point is not called when a diagnostic is an error.
+- A compile diagnostic has a code, a severity, a message and a line and column (both start at 1).
+  The report has the revision of the source that the locations belong to.
+- A thrown exception gives `RuntimeFailed` with one error diagnostic. Its code is `RuntimeException`. Its
+  message has the exception type, the message and the first 20 stack frames.
+- The time limit of the policy covers the whole run: process start, compile and run.
+
+### Worker protocol
+
+[#4] chose standard streams with length-prefixed JSON. See V-04.
+
+- The app starts one worker process for each run. It sends one `WorkerRunRequest` and reads one
+  `WorkerRunResponse`. The worker never reads the editor or the database.
+- A frame is a 4-byte big-endian length and then a UTF-8 JSON payload (`FrameCodec`). The reader checks
+  the length against `WorkerProtocol.MaxMessageBytes` (4 MiB) before it reads the payload.
+- The protocol uses the raw standard input and output of the worker. The worker replaces
+  `Console.Out` and `Console.Error` before the script runs, so the output of the script cannot
+  corrupt a frame. A script that opens the raw stream itself can corrupt the protocol. The supervisor
+  then reports `WorkerMalformedMessage`. The same happens when the script starts a program that writes to
+  the standard output that it inherits. The script is trusted, and v0.1 does not guard against this.
+- Both messages carry `ProtocolVersion`. A receiver rejects another version. The response repeats the
+  execution ID and the source revision, and the supervisor checks both.
+- The worker keeps at most `MaxOutputChars` characters of stdout and of stderr, and records the original
+  length of a cut text. It converts the return value to a `ResultNode` with the `ResultPolicy` of the
+  request. If the value is too large for one message, the worker sends a marked cut and a
+  `ResultTooLarge` warning.
+- The worker exits when its standard input closes. This stops a worker whose app is gone.
+- The supervisor reads the response, then stops the process tree at once. It does not wait for the worker
+  to exit by itself, so a process that the script started does not outlive the run.
+
+Each end of a run has one outcome. The diagnostic code gives the reason:
+
+| Outcome | Diagnostic code | Cause |
+| --- | --- | --- |
+| `Success`, `CompilationFailed`, `RuntimeFailed` | the compiler code, or `RuntimeException` | The worker sent a valid response. |
+| `Canceled` | none | The cancel token fired. |
+| `TimedOut` | `TimeLimitExceeded` | The policy time limit passed. |
+| `WorkerFailed` | `WorkerCrashed` | The worker ended with a non-zero exit code and no response. |
+| `WorkerFailed` | `WorkerExitedEarly` | The worker ended with exit code 0 and no response. |
+| `WorkerFailed` | `WorkerMalformedMessage` | The reply is cut, too large, not JSON, or breaks a rule of the protocol. |
+| `WorkerFailed` | `WorkerProtocolMismatch` | The reply has another protocol version. |
+| `WorkerFailed` | `WorkerStartFailed` | The operating system did not start the process. |
+
+A run that ends before the worker answers has empty captured text. The worker does not stream partial
+output. A later issue can add streaming.
+
+The supervisor logs the end of each run at Information (execution ID, outcome, duration). A worker
+failure without a response is a Warning. The supervisor never logs source, output or values.
+
 ## Worker trust boundary
 
 The worker process is a **crash boundary**. It is **not a security sandbox**.
@@ -249,9 +321,9 @@ implementation. Record a durable decision as an ADR in `docs/adr/` when it passe
 | --- | --- | --- |
 | V-01 | Which modules share one assembly? Resolved in [#1]: none. Each module has its own project. | [#1] |
 | V-02 | Which logging library and which UI smoke test tool? Resolved in [#1]: `Microsoft.Extensions.Logging` with the built-in JSON console provider only. Avalonia.Headless.XUnit for the UI tests, and a `--smoke-test` launch of the real app in CI. | [#1] |
-| V-03 | Which C# script form: Roslyn scripting or top-level statements? How does the last expression become the result? | [#4] |
-| V-04 | Which IPC transport and framing: standard streams or local pipes, length-prefixed or line-delimited JSON? | [#4] |
-| V-05 | Which process tree stop works on each OS? Which resource limits are not available on one OS? | [#4], [#14] |
+| V-03 | Which C# script form: Roslyn scripting or top-level statements? How does the last expression become the result? Resolved in [#4]: Roslyn scripting. The value of the last expression is the result. See [C# script semantics](#c-script-semantics). | [#4] |
+| V-04 | Which IPC transport and framing: standard streams or local pipes, length-prefixed or line-delimited JSON? Resolved in [#4]: standard streams with length-prefixed JSON. See [Worker protocol](#worker-protocol). | [#4] |
+| V-05 | Which process tree stop works on each OS? Which resource limits are not available on one OS? Partly resolved in [#4]: `Process.Kill(entireProcessTree: true)` stops the tree on Linux and Windows, and the tests check it on both. The worker has no memory or CPU limit on either OS. [#14] decides the rest. | [#4], [#14] |
 | V-06 | Which Avalonia editor component? Check it for selection, undo, IME, zoom and accessibility. | [#5] |
 | V-07 | Which XDG fallback folders on Linux? Resolved in [#3]: `$XDG_DATA_HOME/codepad` and `$XDG_CONFIG_HOME/codepad`, with `~/.local/share` and `~/.config` when the variable is not set. | [#3] |
 | V-08 | Is a plain bounded SQLite query fast enough for search, or is FTS needed? Measure first. | [#11] |
@@ -259,7 +331,7 @@ implementation. Record a durable decision as an ADR in `docs/adr/` when it passe
 | V-10 | Which Linux artifact format: an archive or a distribution package? | [#15] |
 | V-11 | Which signature scheme for the update manifest, and how does the owner keep the key? | [#15], [#17] |
 | V-12 | How does the update helper replace the app and roll back on each OS? | [#17] |
-| V-13 | Do Contracts use Domain to carry `ResultNode`? Does Worker use only Contracts? Partly resolved in [#2]: `ResultNode`, diagnostics and outcomes serialize with System.Text.Json and no package, so Contracts can carry them. [#4] decides the module references. | [#1], [#2], [#4] |
+| V-13 | Do Contracts use Domain to carry `ResultNode`? Does Worker use only Contracts? Partly resolved in [#2]: `ResultNode`, diagnostics and outcomes serialize with System.Text.Json and no package, so Contracts can carry them. Resolved in [#4]: Contracts use Domain. Worker uses only Contracts, Domain and Roslyn. | [#1], [#2], [#4] |
 | V-14 | How do the CLI and a running desktop app share one SQLite database safely? Partly resolved in [#3]: write-ahead logging allows readers during a write, and a writer waits up to 5 seconds, then reports `busy`. [#19] decides the rest. | [#3], [#19] |
 | V-15 | Is the CLI a separate executable or a mode of the desktop executable? How does it get on the PATH? | [#15], [#17], [#19] |
 | V-16 | Which command names and argument shapes does the CLI use? | [#19] |

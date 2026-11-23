@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The
 
 ### Added
 
+- C# compilation and isolated execution (#4): the new modules `Codepad.Contracts` and `Codepad.Worker`,
+  the `ICSharpRunner` port and `WorkerSupervisor`. Each explicit run compiles the snapshot with Roslyn
+  scripting and runs it in a new worker process. The report has the value, stdout, stderr, compiler
+  diagnostics with line and column, the exception of a failed run, and the host runtime facts. The
+  supervisor enforces the time limit, output caps and cancel, and stops the whole process tree. A worker
+  crash, an early exit and a malformed message each give a different `WorkerFailed` reason. Messages are
+  length-prefixed JSON on the standard streams, separate from the output of the script. The worker is a
+  crash boundary, not a security sandbox. Nothing runs C# code except an explicit call to the runner.
 - Experiment persistence (#3): one SQLite database (`codepad.db`) in the per-user data folder, with
   write-ahead logging, full synchronization and a versioned schema (`PRAGMA user_version`). Each
   migration step is one transaction. The app refuses a schema that is newer than itself and does not
