@@ -1,0 +1,3 @@
+# The owner reviews each change to the CI workflows and to this file.
+/.github/workflows/ @daniel-kindl
+/.github/CODEOWNERS @daniel-kindl
