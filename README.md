@@ -1,6 +1,13 @@
 # codepad
 
-<!-- TODO(owner): say what codepad is and who it is for. -->
+CodePad is a desktop workbench for Linux and Windows. Developers and AI agents use it to test
+scripts and tools quickly, offline. Run C# snippets on demand and check JSON as you type.
+
+## Documentation
+
+- [PRODUCT.md](PRODUCT.md): v0.1 scope, out-of-scope features and release acceptance scenarios.
+- [Roadmap](PRODUCT.md#roadmap): milestones M0 to M4 and the issue dependencies.
+- [ARCHITECTURE.md](ARCHITECTURE.md): modules, the worker trust boundary and storage.
 
 ## Requirements
 
