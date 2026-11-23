@@ -17,6 +17,25 @@ public sealed class ResultNodeTests
     }
 
     [Fact]
+    public void ObjectAcceptsNamesThatDifferOnlyInCase()
+    {
+        // JSON allows {"a":1,"A":2}. The names are compared with case.
+        ObjectNode obj = new ObjectNode(null, [new ResultProperty("a", new NullNode()), new ResultProperty("A", new NullNode())], null);
+
+        Assert.Equal(2, obj.Properties.Count);
+    }
+
+    [Fact]
+    public void ChildListsCannotBeChangedThroughACast()
+    {
+        SequenceNode sequence = new SequenceNode("L", [new NullNode()], null);
+        ObjectNode obj = new ObjectNode("O", [new ResultProperty("a", new NullNode())], null);
+
+        Assert.Throws<NotSupportedException>(() => ((IList<ResultNode>)sequence.Items)[0] = sequence);
+        Assert.Throws<NotSupportedException>(() => ((IList<ResultProperty>)obj.Properties)[0] = new ResultProperty("b", new NullNode()));
+    }
+
+    [Fact]
     public void ObjectAndSequenceKeepTheirOwnCopyOfTheChildren()
     {
         List<ResultProperty> properties = [new ResultProperty("X", new ScalarNode("System.Int32", "1"))];
@@ -139,6 +158,16 @@ public sealed class ResultNodeTests
         ResultNode root = new SequenceNode("L", [new SequenceNode("L", [new SequenceNode("L", [new NullNode()], null)], null)], null);
 
         Assert.Equal(TruncationReason.DepthLimit, s_small.FindExceededLimit(root));
+    }
+
+    [Fact]
+    public void FindExceededLimitCountsDepthThroughObjects()
+    {
+        ResultNode atLimit = new ObjectNode("O", [new ResultProperty("a", new ObjectNode("O", [new ResultProperty("b", new NullNode())], null))], null);
+        ResultNode overLimit = new ObjectNode("O", [new ResultProperty("a", atLimit)], null);
+
+        Assert.Null(s_small.FindExceededLimit(atLimit));
+        Assert.Equal(TruncationReason.DepthLimit, s_small.FindExceededLimit(overLimit));
     }
 
     [Fact]

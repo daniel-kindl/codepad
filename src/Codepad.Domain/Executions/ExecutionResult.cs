@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using Codepad.Domain.Results;
 
 namespace Codepad.Domain.Executions;
@@ -5,7 +6,7 @@ namespace Codepad.Domain.Executions;
 /// <summary>The outcome, the diagnostics and the value of one completed execution. It is immutable.</summary>
 public sealed class ExecutionResult
 {
-    private readonly Diagnostic[] _diagnostics;
+    private readonly ReadOnlyCollection<Diagnostic> _diagnostics;
 
     /// <summary>Makes a result and checks that its parts agree with the outcome.</summary>
     /// <param name="outcome">How the execution ended.</param>
@@ -20,8 +21,8 @@ public sealed class ExecutionResult
     public ExecutionResult(ExecutionOutcome outcome, IReadOnlyList<Diagnostic> diagnostics, ResultNode? value)
     {
         Guard.Defined(outcome);
-        _diagnostics = Guard.CopyWithNoNulls(diagnostics);
-        bool hasError = Array.Exists(_diagnostics, diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        _diagnostics = Guard.ReadOnlyCopyWithNoNulls(diagnostics);
+        bool hasError = _diagnostics.Any(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
 
         if (value is not null && outcome != ExecutionOutcome.Success)
         {

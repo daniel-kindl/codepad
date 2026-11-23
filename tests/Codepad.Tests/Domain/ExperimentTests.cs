@@ -143,6 +143,15 @@ public sealed class ExperimentTests
     }
 
     [Fact]
+    public void RestoreAcceptsRevisionOneAndModifiedAtEqualToCreatedAt()
+    {
+        Experiment experiment = Experiment.Restore(ExperimentId.New(), OperationKind.Json, "t", "{}", "", s_created, s_created, 1);
+
+        Assert.Equal(1, experiment.Revision);
+        Assert.Equal(experiment.CreatedAt, experiment.ModifiedAt);
+    }
+
+    [Fact]
     public void RestoreRejectsValuesThatNoExperimentCanHave()
     {
         ExperimentId id = ExperimentId.New();

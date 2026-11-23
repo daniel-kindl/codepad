@@ -179,6 +179,15 @@ public sealed class ExecutionTests
     }
 
     [Fact]
+    public void DiagnosticsCannotBeChangedThroughACast()
+    {
+        ExecutionResult result = new ExecutionResult(ExecutionOutcome.Success, [new Diagnostic(DiagnosticSeverity.Info, null, "Note.", null)], null);
+        Diagnostic error = new Diagnostic(DiagnosticSeverity.Error, "CS0103", "Name not found.", null);
+
+        Assert.Throws<NotSupportedException>(() => ((IList<Diagnostic>)result.Diagnostics)[0] = error);
+    }
+
+    [Fact]
     public void ResultKeepsItsOwnCopyOfTheDiagnostics()
     {
         Diagnostic error = new Diagnostic(DiagnosticSeverity.Error, "CS1002", "; expected.", new SourceLocation(2, 7));

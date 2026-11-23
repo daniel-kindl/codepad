@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Runtime.CompilerServices;
 
 namespace Codepad.Domain;
@@ -24,8 +25,11 @@ internal static class Guard
         return value;
     }
 
-    /// <summary>Copies the items into a new array, so that a later change to the caller's list does not change the owner.</summary>
-    public static T[] CopyWithNoNulls<T>(IReadOnlyList<T> items, [CallerArgumentExpression(nameof(items))] string? paramName = null)
+    /// <summary>
+    /// Copies the items into a new read-only list. A later change to the caller's list does not change the owner,
+    /// and a reader cannot change the copy, also through a cast.
+    /// </summary>
+    public static ReadOnlyCollection<T> ReadOnlyCopyWithNoNulls<T>(IReadOnlyList<T> items, [CallerArgumentExpression(nameof(items))] string? paramName = null)
         where T : class
     {
         ArgumentNullException.ThrowIfNull(items, paramName);
@@ -35,6 +39,6 @@ internal static class Guard
             throw new ArgumentException("The list cannot contain null.", paramName);
         }
 
-        return copy;
+        return Array.AsReadOnly(copy);
     }
 }

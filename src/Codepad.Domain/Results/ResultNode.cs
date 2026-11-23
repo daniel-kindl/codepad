@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Text.Json.Serialization;
 
 namespace Codepad.Domain.Results;
@@ -118,7 +119,7 @@ public sealed class ResultProperty
 /// <summary>An object with named properties, for example a record or a JSON object.</summary>
 public sealed class ObjectNode : ResultNode
 {
-    private readonly ResultProperty[] _properties;
+    private readonly ReadOnlyCollection<ResultProperty> _properties;
 
     /// <summary>Makes an object node.</summary>
     /// <param name="typeName">The type of the object, or null if the source has no type.</param>
@@ -129,7 +130,7 @@ public sealed class ObjectNode : ResultNode
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="truncation"/> is not defined.</exception>
     public ObjectNode(string? typeName, IReadOnlyList<ResultProperty> properties, TruncationReason? truncation)
     {
-        _properties = Guard.CopyWithNoNulls(properties);
+        _properties = Guard.ReadOnlyCopyWithNoNulls(properties);
         HashSet<string> names = new HashSet<string>(StringComparer.Ordinal);
         foreach (ResultProperty property in _properties)
         {
@@ -156,7 +157,7 @@ public sealed class ObjectNode : ResultNode
 /// <summary>An ordered sequence of values, for example an array, a list or a JSON array.</summary>
 public sealed class SequenceNode : ResultNode
 {
-    private readonly ResultNode[] _items;
+    private readonly ReadOnlyCollection<ResultNode> _items;
 
     /// <summary>Makes a sequence node.</summary>
     /// <param name="typeName">The type of the sequence, or null if the source has no type.</param>
@@ -170,7 +171,7 @@ public sealed class SequenceNode : ResultNode
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="truncation"/> is not defined.</exception>
     public SequenceNode(string? typeName, IReadOnlyList<ResultNode> items, TruncationReason? truncation)
     {
-        _items = Guard.CopyWithNoNulls(items);
+        _items = Guard.ReadOnlyCopyWithNoNulls(items);
         TypeName = typeName;
         Truncation = truncation is TruncationReason reason ? Guard.Defined(reason, nameof(truncation)) : null;
     }
