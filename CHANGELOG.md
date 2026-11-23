@@ -15,3 +15,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The
   format checks.
 - Dependabot updates for NuGet, the .NET SDK and GitHub Actions.
 - dkstack agent rules (`AGENTS.md`, `CLAUDE.md`), `SECURITY.md` and `CODEOWNERS`.
+- `PRODUCT.md`: v0.1 scope, out-of-scope features, roadmap and acceptance scenarios
+  AC-01 to AC-19, each mapped to its issues.
+- `ARCHITECTURE.md`: module boundaries, the worker trust boundary, storage and retention, and
+  open validation questions.
