@@ -74,9 +74,26 @@ public sealed partial class ResultsView : UserControl
     private async void OnCopyClick(object? sender, RoutedEventArgs e)
     {
         string? text = model?.GetCopyText();
-        if (text is not null && TopLevel.GetTopLevel(this)?.Clipboard is { } clipboard)
+        if (text is null || model is null)
         {
+            return;
+        }
+
+        try
+        {
+            IClipboard? clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+            if (clipboard is null)
+            {
+                model.ReportCopyFailed();
+                return;
+            }
+
             await clipboard.SetTextAsync(text);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            // A clipboard failure is common on Linux, for example without a clipboard manager. It must not stop the app.
+            model.ReportCopyFailed();
         }
     }
 }

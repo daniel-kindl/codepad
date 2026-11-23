@@ -307,7 +307,7 @@ failure without a response is a Warning. The supervisor never logs source, outpu
 - **Choice of view.** `ResultsViewModel` picks the view from the root node. A null, a number or a string shows
   as selectable text. A sequence of objects with the same property names in the same order shows as a table.
   Everything else shows as a tree. A scalar list, a mixed list and an empty list show as a tree.
-- **Bounds in the UI.** The tree creates the children of a row when the row opens. The table uses a
+- **Bounds in the UI.** The tree creates the children of a row when the tree shows the row, so it holds one level of child rows for each visible row. The table uses a
   virtualizing `DataGrid`. The tree and the table hold at most what `ResultPolicy.Default` allows: 50,000
   nodes. A cut value says why in plain words, for example "Only the first items are shown".
 - **Status.** The header shows the outcome as a phrase and as a color, and the execution ID and finish time.

@@ -22,6 +22,10 @@
                      AutomationProperties.Name="Run status"
                      AutomationProperties.LiveSetting="Polite" />
           <TextBlock Classes="run-info" Text="{Binding ExecutionText}" TextTrimming="CharacterEllipsis" />
+          <TextBlock Classes="notice" Margin="0"
+                     IsVisible="{Binding CopyNotice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                     Text="{Binding CopyNotice}"
+                     AutomationProperties.LiveSetting="Polite" />
         </StackPanel>
       </DockPanel>
     </Border>
@@ -91,7 +95,7 @@
                      IsVisible="{Binding StdoutNote, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                      Text="{Binding StdoutNote}" />
           <TextBox Classes="value-text" IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap"
-                   Text="{Binding Stdout, Mode=OneWay}" Watermark="This run wrote nothing to standard output."
+                   Text="{Binding Stdout, Mode=OneWay}" PlaceholderText="This run wrote nothing to standard output."
                    AutomationProperties.Name="Standard output" />
         </DockPanel>
       </TabItem>
@@ -102,7 +106,7 @@
                      IsVisible="{Binding StderrNote, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                      Text="{Binding StderrNote}" />
           <TextBox Classes="value-text" IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap"
-                   Text="{Binding Stderr, Mode=OneWay}" Watermark="This run wrote nothing to standard error."
+                   Text="{Binding Stderr, Mode=OneWay}" PlaceholderText="This run wrote nothing to standard error."
                    AutomationProperties.Name="Standard error" />
         </DockPanel>
       </TabItem>

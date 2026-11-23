@@ -211,6 +211,29 @@ public sealed class ResultsViewModelTests
     }
 
     [Fact]
+    public void ASuccessWithNoValueSaysSoAndForgetsAnEarlierFailureText()
+    {
+        ResultsViewModel model = Show(ResultSamples.Report(ExecutionOutcome.CompilationFailed, diagnostics: [new Diagnostic(DiagnosticSeverity.Error, "CS1", "x", null)]));
+        Assert.Contains("did not compile", model.EmptyText, StringComparison.Ordinal);
+
+        model.Show(ResultSamples.Success(null), _now);
+
+        Assert.Equal(ResultsViewModel.NO_VALUE_TEXT, model.EmptyText);
+    }
+
+    [Fact]
+    public void ACopyFailureShowsANoticeThatTheNextRunClears()
+    {
+        ResultsViewModel model = Show(ResultSamples.Success(ResultSamples.Int(1)));
+
+        model.ReportCopyFailed();
+        Assert.Equal(ResultsViewModel.COPY_FAILED_TEXT, model.CopyNotice);
+
+        model.Show(ResultSamples.Success(ResultSamples.Int(2)), _now);
+        Assert.Equal(string.Empty, model.CopyNotice);
+    }
+
+    [Fact]
     public void OutputIsShownAndACutOutputSaysSo()
     {
         RunReport report = ResultSamples.Report(ExecutionOutcome.Success, stdout: "hello\n", stderr: "warn\n", stdoutOriginal: 5_000_000);

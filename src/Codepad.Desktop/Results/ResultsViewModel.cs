@@ -32,12 +32,19 @@ public sealed class ResultsViewModel : INotifyPropertyChanged
     /// <summary>The text of the result tab before the first run.</summary>
     internal const string EMPTY_RESULT_TEXT = "Run results appear here. Running code isn't available in this build yet.";
 
+    /// <summary>The text of the result tab when a run succeeded and returned no value.</summary>
+    internal const string NO_VALUE_TEXT = "This run returned no value.";
+
+    /// <summary>The notice when the clipboard did not take the text.</summary>
+    internal const string COPY_FAILED_TEXT = "CodePad couldn't copy to the clipboard.";
+
     private static readonly JsonSerializerOptions s_copyOptions = new JsonSerializerOptions { WriteIndented = true };
 
     private string statusText = NO_RUN_TEXT;
     private string statusKind = "idle";
     private string executionText = string.Empty;
     private string emptyText = EMPTY_RESULT_TEXT;
+    private string copyNotice = string.Empty;
     private ResultPresentation presentation;
     private string valueText = string.Empty;
     private ResultTable? table;
@@ -73,6 +80,16 @@ public sealed class ResultsViewModel : INotifyPropertyChanged
         get => executionText;
         private set => Set(ref executionText, value);
     }
+
+    /// <summary>Gets a short notice about the last Copy command, or an empty string.</summary>
+    public string CopyNotice
+    {
+        get => copyNotice;
+        private set => Set(ref copyNotice, value);
+    }
+
+    /// <summary>Tells the panel that the clipboard did not take the text.</summary>
+    public void ReportCopyFailed() => CopyNotice = COPY_FAILED_TEXT;
 
     /// <summary>Gets the text that the result tab shows when there is no value.</summary>
     public string EmptyText
@@ -200,9 +217,11 @@ public sealed class ResultsViewModel : INotifyPropertyChanged
         (Stdout, StdoutNote) = Output(report.Stdout, "Standard output");
         (Stderr, StderrNote) = Output(report.Stderr, "Standard error");
 
+        CopyNotice = string.Empty;
         if (report.Result.Outcome == ExecutionOutcome.Success)
         {
             ShowValue(report.Result.Value, previous: false);
+            EmptyText = NO_VALUE_TEXT;
         }
         else if (shownValue is not null)
         {
@@ -230,6 +249,7 @@ public sealed class ResultsViewModel : INotifyPropertyChanged
         Stderr = string.Empty;
         StdoutNote = string.Empty;
         StderrNote = string.Empty;
+        CopyNotice = string.Empty;
         ShowValue(null, previous: false);
         EmptyText = EMPTY_RESULT_TEXT;
     }
