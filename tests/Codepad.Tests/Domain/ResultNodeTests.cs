@@ -80,6 +80,26 @@ public sealed class ResultNodeTests
     }
 
     [Fact]
+    public void FindExceededLimitAcceptsAnObjectTreeExactlyAtTheNodeLimit()
+    {
+        // 6 nodes (MaxNodes), built from objects only.
+        ObjectNode inner = new ObjectNode("I", [new ResultProperty("a", new NullNode()), new ResultProperty("b", new NullNode())], null);
+        ResultNode root = new ObjectNode("O", [new ResultProperty("x", inner), new ResultProperty("y", new NullNode()), new ResultProperty("z", new NullNode())], null);
+
+        Assert.Null(s_small.FindExceededLimit(root));
+    }
+
+    [Fact]
+    public void FindExceededLimitReportsTheNodeCountOfAnObjectTree()
+    {
+        // 7 nodes, one over MaxNodes, built from objects only.
+        ObjectNode inner = new ObjectNode("I", [new ResultProperty("a", new NullNode()), new ResultProperty("b", new NullNode()), new ResultProperty("c", new NullNode())], null);
+        ResultNode root = new ObjectNode("O", [new ResultProperty("x", inner), new ResultProperty("y", new NullNode()), new ResultProperty("z", new NullNode())], null);
+
+        Assert.Equal(TruncationReason.NodeLimit, s_small.FindExceededLimit(root));
+    }
+
+    [Fact]
     public void FindExceededLimitReportsDepth()
     {
         ResultNode root = new SequenceNode("L", [new SequenceNode("L", [new SequenceNode("L", [new NullNode()], null)], null)], null);
