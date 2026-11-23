@@ -20,4 +20,12 @@ Add one entry for each exception:
 
 ## Project facts
 
-<Facts that an agent needs and cannot find in the code, for example the test command.>
+- Stack: .NET 11 (`net11.0`). `global.json` pins SDK 11.0.100 with `latestPatch` roll-forward.
+- Check a change with the same commands as CI (`.github/workflows/validate.yml`):
+  `dotnet restore`, `dotnet build --configuration Release --no-restore`,
+  `dotnet format --verify-no-changes --no-restore`, `dotnet test --configuration Release --no-build`.
+- The version is `<Version>` in `Directory.Build.props`. Record each change in `CHANGELOG.md`.
+- Package versions go in `Directory.Packages.props` (central package management). Commit each
+  `packages.lock.json`.
+- `scripts/check-*.mjs` are copies from dkstack tag v1.6.0. Do not edit them. Copy them again from
+  a newer tag to update them.

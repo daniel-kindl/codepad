@@ -1,0 +1,11 @@
+<Project>
+
+  <!-- Central package management. Put each package version here, not in a project file. -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+  </ItemGroup>
+
+</Project>
