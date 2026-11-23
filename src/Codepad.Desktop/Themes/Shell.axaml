@@ -83,4 +83,20 @@
     <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
   </Style>
 
+  <!-- The completion list rows. The kind is a word, so the row does not depend on color. -->
+
+  <Style Selector="TextBlock.completion-kind">
+    <Setter Property="Foreground" Value="{DynamicResource ShellMutedTextBrush}" />
+    <Setter Property="FontSize" Value="{StaticResource ShellBodyFontSize}" />
+  </Style>
+  <Style Selector="TextBlock.completion-name">
+    <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+    <Setter Property="FontFamily" Value="{StaticResource EditorFontFamily}" />
+    <Setter Property="FontSize" Value="{StaticResource ShellBodyFontSize}" />
+  </Style>
+  <Style Selector="TextBlock.completion-detail">
+    <Setter Property="Foreground" Value="{DynamicResource ShellMutedTextBrush}" />
+    <Setter Property="FontSize" Value="{StaticResource ShellBodyFontSize}" />
+  </Style>
+
 </Styles>

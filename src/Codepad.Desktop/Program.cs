@@ -41,7 +41,7 @@ internal static partial class Program
 
         string version = typeof(Program).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "unknown";
         ShellOptions options = new ShellOptions(
-            new MainWindowViewModel(report.Notices, new CSharpEditorViewModel(new CSharpHighlighter(), new CSharpAnalyzer(), TimeProvider.System, DiagnosticsCoordinator.DefaultDebounce, reportFailure: reason => LogAnalysisFailed(logger, reason))),
+            new MainWindowViewModel(report.Notices, new CSharpEditorViewModel(new CSharpHighlighter(), new CSharpAnalyzer(), TimeProvider.System, DiagnosticsCoordinator.DefaultDebounce, reportFailure: reason => LogAnalysisFailed(logger, reason), completion: new CSharpCompletionProvider(), reportCompletionFailure: reason => LogCompletionFailed(logger, reason))),
             () =>
             {
                 long startupMs = (long)Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds;
@@ -86,4 +86,8 @@ internal static partial class Program
     [LoggerMessage(EventId = 4, EventName = "editor.analysis_failed", Level = LogLevel.Warning,
         Message = "The C# analysis failed: {ExceptionType}")]
     private static partial void LogAnalysisFailed(ILogger logger, string exceptionType);
+
+    [LoggerMessage(EventId = 5, EventName = "editor.completion_failed", Level = LogLevel.Warning,
+        Message = "A C# completion request failed: {ExceptionType}")]
+    private static partial void LogCompletionFailed(ILogger logger, string exceptionType);
 }

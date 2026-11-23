@@ -29,6 +29,9 @@ public sealed class CSharpEditorViewModel : INotifyPropertyChanged, IDisposable
     private readonly TimeSpan debounce;
     private readonly Action<Action> post;
     private readonly Action<string> reportFailure;
+    private readonly ICSharpCompletionProvider? completion;
+    private readonly Action<string> reportCompletionFailure;
+    private long documentVersion;
     private DiagnosticsCoordinator coordinator;
     private string text = string.Empty;
     private string summaryText = NO_PROBLEMS_TEXT;
@@ -42,7 +45,9 @@ public sealed class CSharpEditorViewModel : INotifyPropertyChanged, IDisposable
     /// <param name="debounce">The idle time before an analysis starts.</param>
     /// <param name="post">Runs an action on the UI thread. Null uses the Avalonia UI thread.</param>
     /// <param name="reportFailure">Receives the exception type name when the analysis fails. Null ignores it.</param>
-    public CSharpEditorViewModel(ICSharpHighlighter highlighter, ICSharpAnalyzer analyzer, TimeProvider timeProvider, TimeSpan debounce, Action<Action>? post = null, Action<string>? reportFailure = null)
+    /// <param name="completion">Suggests code. Null turns the suggestions off.</param>
+    /// <param name="reportCompletionFailure">Receives the exception type name when a completion request fails. Null ignores it.</param>
+    public CSharpEditorViewModel(ICSharpHighlighter highlighter, ICSharpAnalyzer analyzer, TimeProvider timeProvider, TimeSpan debounce, Action<Action>? post = null, Action<string>? reportFailure = null, ICSharpCompletionProvider? completion = null, Action<string>? reportCompletionFailure = null)
     {
         ArgumentNullException.ThrowIfNull(highlighter);
         ArgumentNullException.ThrowIfNull(analyzer);
@@ -53,6 +58,8 @@ public sealed class CSharpEditorViewModel : INotifyPropertyChanged, IDisposable
         this.debounce = debounce;
         this.post = post ?? (action => Dispatcher.UIThread.Post(action));
         this.reportFailure = reportFailure ?? (_ => { });
+        this.completion = completion;
+        this.reportCompletionFailure = reportCompletionFailure ?? (_ => { });
         coordinator = CreateCoordinator();
     }
 
@@ -67,6 +74,12 @@ public sealed class CSharpEditorViewModel : INotifyPropertyChanged, IDisposable
 
     /// <summary>Gets the syntax highlighter that the view uses.</summary>
     public ICSharpHighlighter Highlighter { get; }
+
+    /// <summary>Gets a value indicating whether the editor can suggest code.</summary>
+    public bool CanComplete => completion is not null;
+
+    /// <summary>Gets the version of the document. It grows with each edit and each <see cref="Load"/>. A completion belongs to one version.</summary>
+    public long DocumentVersion => Volatile.Read(ref documentVersion);
 
     /// <summary>Gets the diagnostics of the current text. The list is empty while an analysis is pending.</summary>
     public ObservableCollection<DiagnosticItem> Diagnostics { get; } = [];
@@ -90,6 +103,7 @@ public sealed class CSharpEditorViewModel : INotifyPropertyChanged, IDisposable
         coordinator.Dispose();
         coordinator = CreateCoordinator();
         text = source;
+        Interlocked.Increment(ref documentVersion);
         Diagnostics.Clear();
         loading = true;
         try
@@ -115,9 +129,45 @@ public sealed class CSharpEditorViewModel : INotifyPropertyChanged, IDisposable
         }
 
         text = newText;
+        Interlocked.Increment(ref documentVersion);
         Diagnostics.Clear();
         BeginAnalysis();
         ContentChanged?.Invoke(newText);
+    }
+
+    /// <summary>
+    /// Asks for suggestions at a caret position in the current text. The work runs off the UI thread on an immutable
+    /// copy of the text. Call it from the UI thread. The result is null when the text or the document changed while
+    /// the request ran, when the request was cancelled, or when it failed. A stale result never reaches the caller.
+    /// </summary>
+    /// <param name="caret">The zero-based caret offset in the current text.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The suggestions for the version that was current at the call, or null.</returns>
+    public async Task<CompletionResult?> GetCompletionAsync(int caret, CancellationToken cancellationToken)
+    {
+        if (completion is null || disposed)
+        {
+            return null;
+        }
+
+        long requested = DocumentVersion;
+        string snapshot = text;
+        try
+        {
+            CompletionResult result = await Task.Run(() => completion.GetCompletionsAsync(snapshot, caret, cancellationToken), cancellationToken);
+
+            // The continuation runs on the UI thread, so no edit can come between this check and the caller.
+            return disposed || requested != DocumentVersion || cancellationToken.IsCancellationRequested ? null : result;
+        }
+        catch (OperationCanceledException)
+        {
+            return null;
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            reportCompletionFailure(exception.GetType().Name);
+            return null;
+        }
     }
 
     /// <summary>Stops the analysis.</summary>

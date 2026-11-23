@@ -222,6 +222,134 @@ public sealed class CSharpEditorViewTests
         window.Close();
     }
 
+    [AvaloniaFact]
+    public async Task TypingAMemberPrefixOpensSuggestionsAndEnterAcceptsWithoutCorruptingPunctuation()
+    {
+        (MainWindow window, CSharpEditorView view) = Show("light");
+        view.TextEditor.TextArea.Focus();
+
+        window.KeyTextInput("Console.Wri");
+        await WaitAsync(() => view.OpenCompletion is not null);
+
+        Assert.Contains(view.OpenCompletion!.CompletionList.CompletionData, item => item.Text == "WriteLine");
+        window.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None);
+        window.KeyReleaseQwerty(PhysicalKey.Enter, RawInputModifiers.None);
+
+        Assert.Equal("Console.Write", view.TextEditor.Text);
+        Assert.Null(view.OpenCompletion);
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public async Task EscapeClosesSuggestionsWithoutChangingTheText()
+    {
+        (MainWindow window, CSharpEditorView view) = Show("light");
+        view.TextEditor.TextArea.Focus();
+        window.KeyTextInput("Console.Wri");
+        await WaitAsync(() => view.OpenCompletion is not null);
+
+        window.KeyPressQwerty(PhysicalKey.Escape, RawInputModifiers.None);
+        window.KeyReleaseQwerty(PhysicalKey.Escape, RawInputModifiers.None);
+
+        Assert.Null(view.OpenCompletion);
+        Assert.Equal("Console.Wri", view.TextEditor.Text);
+        Assert.IsType<AvaloniaEdit.Editing.TextArea>(window.FocusManager?.GetFocusedElement());
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public async Task TabAcceptsTheSelectedSuggestionAndUndoRestoresTheTypedWord()
+    {
+        (MainWindow window, CSharpEditorView view) = Show("light");
+        view.TextEditor.TextArea.Focus();
+        window.KeyTextInput("whi");
+        await WaitAsync(() => view.OpenCompletion is not null);
+
+        window.KeyPressQwerty(PhysicalKey.Tab, RawInputModifiers.None);
+        window.KeyReleaseQwerty(PhysicalKey.Tab, RawInputModifiers.None);
+
+        Assert.Equal("while", view.TextEditor.Text);
+        view.TextEditor.Undo();
+        Assert.Equal("whi", view.TextEditor.Text);
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public async Task TypingPunctuationClosesSuggestionsAndKeepsTheTypedText()
+    {
+        (MainWindow window, CSharpEditorView view) = Show("light");
+        view.TextEditor.TextArea.Focus();
+        window.KeyTextInput("Console.Wri");
+        await WaitAsync(() => view.OpenCompletion is not null);
+
+        window.KeyTextInput("(");
+
+        Assert.Null(view.OpenCompletion);
+        Assert.Equal("Console.Wri(", view.TextEditor.Text);
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public async Task SuggestionsForAnOldDocumentNeverShowInTheNewOne()
+    {
+        (MainWindow window, CSharpEditorView view) = Show("light");
+        CSharpEditorViewModel model = (CSharpEditorViewModel)view.DataContext!;
+        view.TextEditor.TextArea.Focus();
+
+        window.KeyTextInput("Console.Wri");
+        model.Load("// another experiment");
+        await Task.Delay(500, TestContext.Current.CancellationToken);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Null(view.OpenCompletion);
+        Assert.Equal("// another experiment", view.TextEditor.Text);
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public async Task ControlSpaceOpensSuggestionsAndArrowKeysChangeTheSelection()
+    {
+        (MainWindow window, CSharpEditorView view) = Show("light");
+        view.TextEditor.TextArea.Focus();
+        window.KeyTextInput("Console.");
+        await WaitAsync(() => view.OpenCompletion is not null);
+        view.OpenCompletion!.Close();
+        Assert.Null(view.OpenCompletion);
+
+        window.KeyPressQwerty(PhysicalKey.Space, RawInputModifiers.Control);
+        window.KeyReleaseQwerty(PhysicalKey.Space, RawInputModifiers.Control);
+        await WaitAsync(() => view.OpenCompletion is not null);
+        object? first = view.OpenCompletion!.CompletionList.SelectedItem;
+        window.KeyPressQwerty(PhysicalKey.ArrowDown, RawInputModifiers.None);
+        window.KeyReleaseQwerty(PhysicalKey.ArrowDown, RawInputModifiers.None);
+
+        Assert.NotSame(first, view.OpenCompletion!.CompletionList.SelectedItem);
+        window.Close();
+    }
+
+    [AvaloniaTheory]
+    [InlineData("light", 1000, 640, "member")]
+    [InlineData("dark", 1000, 640, "member")]
+    [InlineData("light", 640, 400, "member")]
+    [InlineData("dark", 1000, 640, "scope")]
+    public async Task CapturesTheSuggestions(string theme, int width, int height, string situation)
+    {
+        (MainWindow window, CSharpEditorView view) = Show(theme, width, height);
+        view.TextEditor.TextArea.Focus();
+        window.KeyTextInput(situation == "member" ? "Console.Wri" : "int counter = 1;\nstring cache = \"\";\nc");
+        await WaitAsync(() => view.OpenCompletion is not null);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
+        Dispatcher.UIThread.RunJobs();
+
+        WriteableBitmap? frame = window.CaptureRenderedFrame();
+
+        Assert.NotNull(frame);
+        string folder = Path.Combine(AppContext.BaseDirectory, "screenshots", OperatingSystem.IsWindows() ? "windows" : "linux");
+        Directory.CreateDirectory(folder);
+        frame.Save(Path.Combine(folder, $"completion-{theme}-{situation}-{width}x{height}.png"), PngBitmapEncoderOptions.Default);
+        window.Close();
+    }
+
     private static string Source(string state) => state switch
     {
         "empty" => string.Empty,
@@ -232,7 +360,7 @@ public sealed class CSharpEditorViewTests
 
     private static (MainWindow Window, CSharpEditorView View) Show(string theme, int width = 1000, int height = 640)
     {
-        CSharpEditorViewModel editor = new CSharpEditorViewModel(new CSharpHighlighter(), new CSharpAnalyzer(), TimeProvider.System, TimeSpan.FromMilliseconds(20));
+        CSharpEditorViewModel editor = new CSharpEditorViewModel(new CSharpHighlighter(), new CSharpAnalyzer(), TimeProvider.System, TimeSpan.FromMilliseconds(20), completion: new CSharpCompletionProvider());
         MainWindow window = new MainWindow
         {
             DataContext = new MainWindowViewModel([], editor),

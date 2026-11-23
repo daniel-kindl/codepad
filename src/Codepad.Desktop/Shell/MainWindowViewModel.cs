@@ -21,7 +21,7 @@ public sealed class MainWindowViewModel(IReadOnlyList<StartupNotice> notices, CS
     private const string READY_TEXT = "Ready";
 
     /// <summary>Gets the C# editor.</summary>
-    public CSharpEditorViewModel Editor { get; } = editor ?? new CSharpEditorViewModel(new CSharpHighlighter(), new CSharpAnalyzer(), TimeProvider.System, Codepad.Application.Editing.DiagnosticsCoordinator.DefaultDebounce);
+    public CSharpEditorViewModel Editor { get; } = editor ?? new CSharpEditorViewModel(new CSharpHighlighter(), new CSharpAnalyzer(), TimeProvider.System, Codepad.Application.Editing.DiagnosticsCoordinator.DefaultDebounce, completion: new CSharpCompletionProvider());
 
     /// <summary>Gets the window title.</summary>
     public string Title { get; } = "CodePad";

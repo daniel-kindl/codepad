@@ -103,7 +103,8 @@ stop without a normal shutdown, and never runs restored source.
 The window has a C# editor. It colors the syntax and lists compiler errors and warnings as you
 type, and it never runs your code. Press F8 to go to the next problem. Press Enter on a problem in
 the list to select it in the editor. Press Escape to leave the editor for the list. Ctrl with plus,
-minus or the mouse wheel changes the font size. The editor text is not saved yet. Saving and tabs
+minus or the mouse wheel changes the font size. Suggestions open as you type a name or a dot, and
+with Ctrl+Space. Use Up and Down to choose, Enter or Tab to accept, and Escape to close. The editor text is not saved yet. Saving and tabs
 come with a later change.
 
 The app writes JSON log events to standard output. The events do not hold source, input, results
@@ -117,6 +118,7 @@ and in this table.
 | 2 | `shell.opened` | Information | The main window opened. Fields: `Version`, `StartupMs`. |
 | 3 | `shell.crashed` | Critical | An unhandled exception stopped the app. Field: `ExceptionType`. |
 | 4 | `editor.analysis_failed` | Warning | The C# analysis threw an exception. Field: `ExceptionType`. |
+| 5 | `editor.completion_failed` | Warning | A completion request threw an exception. Field: `ExceptionType`. |
 
 ## Contribute
 

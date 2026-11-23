@@ -15,6 +15,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The
 
 ### Added
 
+- C# code completion (#6): keywords, names in scope and members, from the same Roslyn script compilation as
+  the diagnostics. Suggestions open as you type a name or a dot, and with Ctrl+Space. Enter or Tab accepts,
+  Escape closes, and a punctuation key closes the list and keeps what you typed. A request for an old text
+  version or another document is dropped. Completion never runs your code.
 - C# editor (#5): the workspace shows an AvaloniaEdit editor with syntax colors for light and dark
   themes, compiler diagnostics and a diagnostics list. The new module `Codepad.Language` gives
   Roslyn syntax coloring and syntax and semantic diagnostics. The analysis runs in the background
