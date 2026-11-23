@@ -15,6 +15,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The
 
 ### Added
 
+- Run history (#8): `RunHistoryService` runs a C# snapshot, or runs a saved snapshot again, and stores one
+  immutable record for each run: the source, the input, the policy, the time, the outcome, the problems, the
+  bounded value and the output. Schema step 2 replaces the empty reserved `execution_history` table. History
+  keeps the newest 100 runs of each experiment and removes the older ones in the same transaction as the new
+  record. It never removes an experiment or its current source. A history panel lists the saved runs, newest
+  first, shows the saved source and result of one run as read-only, and has a Rerun button. The window shows the
+  panel only when it has a history model. No Run command or experiment list uses it yet.
 - Result panel (#7): a status header, and tabs for the result, problems, standard output and standard error.
   A number, a string or null shows as selectable text. An object or nested list shows as an expandable tree
   that opens its rows when asked. A list of objects with the same properties shows as a table. A cut value says

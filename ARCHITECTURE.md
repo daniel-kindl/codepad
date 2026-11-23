@@ -315,7 +315,43 @@ failure without a response is a Warning. The supervisor never logs source, outpu
   Problems, standard output and standard error are separate tabs. A cut output says how much it shows.
 - **Copy.** The Copy button puts the bounded value on the clipboard as indented JSON.
 - **Not connected yet.** No Run command exists yet, so the panel shows "No run yet". A later issue connects
-  `ResultsViewModel.Show` to a run ([#8]).
+  `ResultsViewModel.Show` to a run. The history panel ([#8]) already calls it for a saved run.
+
+## Run history
+
+[#8] stores each completed C# run as one immutable record.
+
+- **Record.** `RunRecord` holds the `ExecutionRequest` (source, input, experiment revision and policy), the
+  completion time and the `RunReport` (outcome, problems, bounded value, output and host facts). The outcomes
+  are all six: a canceled, timed-out or failed run is a record with its own cause. The request has no start
+  time, so the duration is the time from the request to the end.
+- **Order of work.** `RunHistoryService` takes the snapshot first, then runs it, then stores the record. An edit
+  during the run does not change the snapshot. A failed store does not lose the result: `CompletedRun` holds the
+  record and a log-safe `StorageFailure`. The store does not use the run token, so a canceled run is still saved.
+- **Rerun.** `RerunAsync` copies the saved request with a new ID (`ExecutionRequest.Rerun`) and stores a new
+  record. The old record and the current source do not change. Only a method call starts it, and only the
+  Rerun button calls it.
+- **Storage.** `SqliteRunHistoryRepository` writes the record and removes the oldest runs of the same experiment
+  in one transaction. A record never updates. A second insert with the same ID fails with `duplicate`. A run of
+  an experiment that is not stored fails with `missing_parent`. The list returns summaries only, so a list of
+  100 runs does not load 100 results. A damaged row stays out of the list, and `GetAsync` reports it as `corrupt`.
+- **Retention.** The default is 100 runs for each experiment. `ORDER BY completed_at DESC, id DESC` decides
+  which runs are the newest. Retention never touches the `experiments` table.
+- **Panel.** The panel keeps the inspected record in memory. If retention removes the record from storage while
+  the user looks at it, the view and Rerun still work. The panel says "Saved run" and that the current code is
+  unchanged, so an old success is never shown as the current output.
+- **Stale reads.** Each click, each end of an inspection and each experiment switch starts a new navigation,
+  and each list read has a version. A read or a rerun that finishes after a newer one started changes nothing.
+  After a rerun, the new run replaces the saved run in the panel, with its own time and ID.
+- **Limits.** Retention orders by the completion time, so a clock that moves back can trim a newer run first.
+  The foreign key to `experiments` has no delete rule: the change that deletes experiments must choose one.
+  The last selected experiment is not stored here. [#10] stores the tab session. This change tests only that
+  the history of an experiment survives a restart.
+- **Not connected yet.** The window shows the panel only when it gets a history model. The app has no current
+  experiment and no Run command yet, so `Program` does not create one. The change that adds them calls
+  `RunHistoryViewModel.ShowExperimentAsync` and `RunHistoryService.RunAsync`.
+- **Logging.** History logs nothing. The source and the output can hold secrets. The caller logs the
+  `StorageFailure` reason code.
 
 ## Worker trust boundary
 
@@ -353,7 +389,8 @@ The release documentation states this limit. See [#15].
   keeps the edited buffer after a failure. It does not retry by itself: the next edit or a Retry
   tries again. The storage failure reasons are `disk_full`, `read_only`, `busy`, `io_error`,
   `corrupt`, `cannot_open`, `schema_too_new` and `migration_failed`. A reason never holds source or a path.
-- The tables `execution_history` and `tab_session` are reserved. [#8] and [#10] add their columns.
+- The table `tab_session` is reserved. [#10] adds its columns. Schema step 2 gave `execution_history` its
+  columns ([#8]). See "Run history".
 - Each write is a transaction. The UI shows dirty, saving, saved and error states. The app does not
   say "saved" before the commit is durable.
 - Each experiment has a revision number. An older write cannot replace a newer revision.

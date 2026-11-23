@@ -39,5 +39,32 @@ internal static class SqliteMigrations
                 id INTEGER NOT NULL PRIMARY KEY CHECK (id = 1)
             ) STRICT;
             """),
+
+        // Run history (#8). The table from step 1 was reserved and no code wrote to it, so it is empty and can be replaced.
+        new Migration(2, """
+            DROP TABLE execution_history;
+
+            CREATE TABLE execution_history (
+                id                   TEXT    NOT NULL PRIMARY KEY,
+                experiment_id        TEXT    NOT NULL REFERENCES experiments (id),
+                experiment_revision  INTEGER NOT NULL,
+                requested_at         TEXT    NOT NULL,
+                completed_at         TEXT    NOT NULL,
+                outcome              TEXT    NOT NULL,
+                policy_json          TEXT    NOT NULL,
+                source               TEXT    NOT NULL,
+                input                TEXT    NOT NULL,
+                source_revision      INTEGER NOT NULL,
+                diagnostics_json     TEXT    NOT NULL,
+                value_json           TEXT,
+                stdout               TEXT    NOT NULL,
+                stdout_original_len  INTEGER,
+                stderr               TEXT    NOT NULL,
+                stderr_original_len  INTEGER,
+                host_json            TEXT
+            ) STRICT;
+
+            CREATE INDEX ix_execution_history_experiment ON execution_history (experiment_id, completed_at DESC, id DESC);
+            """),
     ];
 }

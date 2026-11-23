@@ -14,6 +14,7 @@ internal static class SqliteFailure
     private const int SQLITE_CORRUPT = 11;
     private const int SQLITE_FULL = 13;
     private const int SQLITE_CANTOPEN = 14;
+    private const int SQLITE_CONSTRAINT = 19;
     private const int SQLITE_NOTADB = 26;
 
     /// <summary>Maps the exception to a storage exception.</summary>
@@ -28,9 +29,21 @@ internal static class SqliteFailure
             SQLITE_IOERR => "io_error",
             SQLITE_CORRUPT or SQLITE_NOTADB => "corrupt",
             SQLITE_FULL => "disk_full",
+            SQLITE_CONSTRAINT => ConstraintReason(exception),
             SQLITE_CANTOPEN => "cannot_open",
             _ => $"sqlite_error_{exception.SqliteErrorCode}",
         };
         return new ExperimentStorageException(reason, exception);
+    }
+
+    private static string ConstraintReason(SqliteException exception)
+    {
+        // The extended code tells a repeated key (PRIMARYKEY 1555, UNIQUE 2067) from a missing parent row (FOREIGNKEY 787).
+        return exception.SqliteExtendedErrorCode switch
+        {
+            1555 or 2067 => "duplicate",
+            787 => "missing_parent",
+            _ => "constraint",
+        };
     }
 }
