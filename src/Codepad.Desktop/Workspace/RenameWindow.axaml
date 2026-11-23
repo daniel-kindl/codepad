@@ -1,0 +1,20 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Codepad.Desktop.Workspace.RenameWindow"
+        Title="Rename experiment"
+        Width="420" SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        AutomationProperties.Name="Rename experiment">
+
+  <StackPanel Margin="16" Spacing="12">
+    <TextBlock Text="New title" />
+    <TextBox x:Name="TitleBox" AutomationProperties.Name="Experiment title" />
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button x:Name="OkButton" Content="Rename" IsDefault="True" AutomationProperties.Name="Rename" Click="OnOkClick" />
+      <Button Content="Cancel" IsCancel="True" AutomationProperties.Name="Cancel" Click="OnCancelClick" />
+    </StackPanel>
+  </StackPanel>
+
+</Window>

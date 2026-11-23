@@ -96,6 +96,25 @@
     <Setter Property="VerticalAlignment" Value="Center" />
   </Style>
 
+  <!-- The library panel. -->
+
+  <Style Selector="TextBlock.library-title">
+    <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+    <Setter Property="FontSize" Value="{StaticResource ShellTitleFontSize}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <Style Selector="TextBlock.library-item-title">
+    <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+    <Setter Property="FontSize" Value="{StaticResource ShellBodyFontSize}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <Style Selector="TextBlock.library-item-meta">
+    <Setter Property="Foreground" Value="{DynamicResource ShellMutedTextBrush}" />
+    <Setter Property="FontSize" Value="{StaticResource ShellBodyFontSize}" />
+  </Style>
+
   <!-- The C# editor and its diagnostics list. -->
 
   <Style Selector="ae|TextEditor.code-editor">

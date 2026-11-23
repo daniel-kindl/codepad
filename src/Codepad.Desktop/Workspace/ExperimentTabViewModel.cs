@@ -118,6 +118,26 @@ public abstract class ExperimentTabViewModel : INotifyPropertyChanged, IAsyncDis
         GC.SuppressFinalize(this);
     }
 
+    /// <summary>The longest title in characters.</summary>
+    public static readonly int MaxTitleLength = 100;
+
+    /// <summary>Renames the experiment. Autosave stores the new title like an edit of the text.</summary>
+    /// <param name="title">The new title. Leading and trailing white space is removed.</param>
+    /// <returns>False when the title is empty or longer than <see cref="MaxTitleLength"/>. The title stays then.</returns>
+    public bool Rename(string title)
+    {
+        ArgumentNullException.ThrowIfNull(title);
+        string trimmed = title.Trim();
+        if (trimmed.Length == 0 || trimmed.Length > MaxTitleLength)
+        {
+            return false;
+        }
+
+        session.Edit(session.Current.WithTitle(trimmed, timeProvider.GetUtcNow()));
+        RaiseSaveState();
+        return true;
+    }
+
     /// <summary>Takes the text of an edit from the editor.</summary>
     /// <param name="text">The text after the edit.</param>
     protected void Edited(string text)
@@ -144,6 +164,8 @@ public abstract class ExperimentTabViewModel : INotifyPropertyChanged, IAsyncDis
         Raise(nameof(SaveBadge));
         Raise(nameof(HasSaveProblem));
         Raise(nameof(AccessibleName));
+        Raise(nameof(Title));
+        Raise(nameof(CloseName));
         Raise(nameof(Source));
     }
 

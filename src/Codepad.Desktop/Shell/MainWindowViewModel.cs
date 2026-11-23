@@ -1,6 +1,7 @@
 using Codepad.Application.Startup;
 using Codepad.Desktop.Editor;
 using Codepad.Desktop.History;
+using Codepad.Desktop.Library;
 using Codepad.Desktop.Results;
 using Codepad.Desktop.Workspace;
 using Codepad.Language;
@@ -12,7 +13,8 @@ namespace Codepad.Desktop.Shell;
 /// <param name="editor">The C# editor. Null creates the editor with the Roslyn language service.</param>
 /// <param name="history">The history panel, or null when run history is not available. The window then hides the panel.</param>
 /// <param name="workspace">The open tabs, or null when storage is not available. The window then shows one editor that does not save.</param>
-public sealed class MainWindowViewModel(IReadOnlyList<StartupNotice> notices, CSharpEditorViewModel? editor = null, RunHistoryViewModel? history = null, WorkspaceViewModel? workspace = null)
+/// <param name="library">The library panel, or null when storage is not available. The window then hides the panel.</param>
+public sealed class MainWindowViewModel(IReadOnlyList<StartupNotice> notices, CSharpEditorViewModel? editor = null, RunHistoryViewModel? history = null, WorkspaceViewModel? workspace = null, LibraryViewModel? library = null)
 {
     /// <summary>The status text when the settings file is not usable.</summary>
     internal const string SETTINGS_UNUSABLE_TEXT = "Your settings file couldn't be read, so CodePad is using the default settings.";
@@ -39,6 +41,12 @@ public sealed class MainWindowViewModel(IReadOnlyList<StartupNotice> notices, CS
 
     /// <summary>Gets the open tabs, or null when storage is not available.</summary>
     public WorkspaceViewModel? Workspace { get; } = workspace;
+
+    /// <summary>Gets the library panel, or null when storage is not available.</summary>
+    public LibraryViewModel? Library { get; } = library;
+
+    /// <summary>Gets a value indicating whether the window has a library panel.</summary>
+    public bool HasLibrary => Library is not null;
 
     /// <summary>Gets a value indicating whether the window shows tabs.</summary>
     public bool HasWorkspace => Workspace is not null;

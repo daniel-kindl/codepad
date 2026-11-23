@@ -1,0 +1,55 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:library="using:Codepad.Desktop.Library"
+             x:Class="Codepad.Desktop.Library.LibraryView"
+             x:DataType="library:LibraryViewModel">
+
+  <DockPanel Margin="8" AutomationProperties.Name="Library">
+
+    <TextBlock DockPanel.Dock="Top" Classes="library-title" Text="Library" />
+
+    <TextBox x:Name="SearchBox"
+             DockPanel.Dock="Top"
+             Margin="0,6,0,6"
+             PlaceholderText="Search experiments"
+             Text="{Binding Query, Mode=TwoWay}"
+             AutomationProperties.Name="Search experiments" />
+
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="4" Margin="0,0,0,6"
+                AutomationProperties.Name="Kind filter">
+      <RadioButton GroupName="LibraryKind" Content="All" IsChecked="{Binding IsAllFilter, Mode=TwoWay}" AutomationProperties.Name="Show all kinds" />
+      <RadioButton GroupName="LibraryKind" Content="C#" IsChecked="{Binding IsCSharpFilter, Mode=TwoWay}" AutomationProperties.Name="Show C# experiments" />
+      <RadioButton GroupName="LibraryKind" Content="JSON" IsChecked="{Binding IsJsonFilter, Mode=TwoWay}" AutomationProperties.Name="Show JSON experiments" />
+    </StackPanel>
+
+    <Button x:Name="MoreButton" DockPanel.Dock="Bottom" Content="Load more" HorizontalAlignment="Stretch"
+            IsVisible="{Binding HasMore}" Click="OnMoreClick" AutomationProperties.Name="Load more experiments" />
+
+    <TextBlock DockPanel.Dock="Bottom" Classes="notice" Margin="0,6,0,6" TextWrapping="Wrap"
+               Text="{Binding StatusText}"
+               AutomationProperties.Name="Library status"
+               AutomationProperties.LiveSetting="Polite" />
+
+    <ListBox x:Name="ResultList"
+             ItemsSource="{Binding Items}"
+             SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+             AutomationProperties.Name="Experiments">
+      <ListBox.ItemTemplate>
+        <DataTemplate x:DataType="library:LibraryItem">
+          <StackPanel Spacing="2" AutomationProperties.Name="{Binding AccessibleName}">
+            <TextBlock Classes="library-item-title" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Classes="library-item-meta" Text="{Binding KindText}" />
+              <TextBlock Classes="library-item-meta" Text="{Binding ModifiedText}" />
+            </StackPanel>
+            <TextBlock Classes="library-item-meta" Text="{Binding Preview}" TextTrimming="CharacterEllipsis"
+                       IsVisible="{Binding Preview, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          </StackPanel>
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+
+  </DockPanel>
+
+</UserControl>

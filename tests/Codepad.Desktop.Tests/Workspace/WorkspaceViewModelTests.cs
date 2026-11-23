@@ -404,4 +404,37 @@ public sealed class WorkspaceViewModelTests
         Assert.Contains("couldn't read", fixture.Model.Notice, StringComparison.Ordinal);
         Assert.Contains("busy", fixture.Failures);
     }
+
+    [Fact]
+    public async Task RenamingTrimsStoresTheTitleAndKeepsTheSource()
+    {
+        WorkspaceFixture fixture = new WorkspaceFixture();
+        await fixture.Model.RestoreAsync(TestContext.Current.CancellationToken);
+        CSharpTabViewModel tab = Assert.IsType<CSharpTabViewModel>(fixture.Model.Tabs[0]);
+        tab.Editor.OnTextEdited("int a = 1;");
+
+        Assert.True(tab.Rename("  Invoice parser  "));
+        await tab.FlushAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal("Invoice parser", tab.Title);
+        Assert.Equal("Invoice parser", fixture.Experiments.Stored(tab.Id)?.Title);
+        Assert.Equal("int a = 1;", fixture.Experiments.Stored(tab.Id)?.Source);
+        Assert.Equal("Close Invoice parser", tab.CloseName);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task AnEmptyTitleIsRefusedAndTheOldTitleStays(string title)
+    {
+        WorkspaceFixture fixture = new WorkspaceFixture();
+        await fixture.Model.RestoreAsync(TestContext.Current.CancellationToken);
+        ExperimentTabViewModel tab = fixture.Model.Tabs[0];
+        string before = tab.Title;
+
+        Assert.False(tab.Rename(title));
+        Assert.False(tab.Rename(new string('x', ExperimentTabViewModel.MaxTitleLength + 1)));
+
+        Assert.Equal(before, tab.Title);
+    }
 }

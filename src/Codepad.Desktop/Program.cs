@@ -7,6 +7,7 @@ using Codepad.Application.Workspace;
 using Codepad.Application.Startup;
 using Codepad.Desktop.Editor;
 using Codepad.Desktop.Json;
+using Codepad.Desktop.Library;
 using Codepad.Desktop.Workspace;
 using Codepad.Desktop.Shell;
 using Codepad.Infrastructure.Startup;
@@ -47,10 +48,13 @@ internal static partial class Program
         WorkspaceViewModel? workspace = report.Notices.Any(notice => notice.Kind is StartupNoticeKind.DataFolderUnavailable or StartupNoticeKind.DataStoreUnavailable)
             ? null
             : OpenWorkspace(database, logger);
+        LibraryViewModel? library = workspace is null
+            ? null
+            : new LibraryViewModel(new SqliteLibraryRepository(database), workspace, TimeProvider.System, TimeSpan.FromMilliseconds(250), reportFailure: reason => LogLibraryFailed(logger, reason));
 
         string version = typeof(Program).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "unknown";
         ShellOptions options = new ShellOptions(
-            new MainWindowViewModel(report.Notices, new CSharpEditorViewModel(new CSharpHighlighter(), new CSharpAnalyzer(), TimeProvider.System, DiagnosticsCoordinator.DefaultDebounce, reportFailure: reason => LogAnalysisFailed(logger, reason), completion: new CSharpCompletionProvider(), reportCompletionFailure: reason => LogCompletionFailed(logger, reason)), workspace: workspace),
+            new MainWindowViewModel(report.Notices, new CSharpEditorViewModel(new CSharpHighlighter(), new CSharpAnalyzer(), TimeProvider.System, DiagnosticsCoordinator.DefaultDebounce, reportFailure: reason => LogAnalysisFailed(logger, reason), completion: new CSharpCompletionProvider(), reportCompletionFailure: reason => LogCompletionFailed(logger, reason)), workspace: workspace, library: library),
             () =>
             {
                 long startupMs = (long)Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds;
@@ -119,4 +123,8 @@ internal static partial class Program
     [LoggerMessage(EventId = 7, EventName = "workspace.storage_failed", Level = LogLevel.Warning,
         Message = "The tab session could not be read or saved: {Reason}")]
     private static partial void LogWorkspaceStorageFailed(ILogger logger, string reason);
+
+    [LoggerMessage(EventId = 8, EventName = "library.search_failed", Level = LogLevel.Warning,
+        Message = "A library search failed: {Reason}")]
+    private static partial void LogLibraryFailed(ILogger logger, string reason);
 }

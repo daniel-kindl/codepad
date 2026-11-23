@@ -12,7 +12,7 @@ For the product scope, see [PRODUCT.md](PRODUCT.md).
 `Codepad.Desktop`. Each module has its own assembly. [#2] added the domain model. See
 [Domain model](#domain-model). [#3] added storage. See
 [Storage and retention](#storage-and-retention). [#4] added Contracts and Worker. See
-[C# script semantics](#c-script-semantics) and [Worker protocol](#worker-protocol). [#5] added the C# editor, [#6] added completion and [#7] added the result panel. See [C# editor](#c-editor). [#8] added run history, [#9] added live JSON and [#10] added tabs. [#19] creates
+[C# script semantics](#c-script-semantics) and [Worker protocol](#worker-protocol). [#5] added the C# editor, [#6] added completion and [#7] added the result panel. See [C# editor](#c-editor). [#8] added run history, [#9] added live JSON and [#10] added tabs and [#11] added the library. [#19] creates
 the CLI.
 
 The Desktop app opens one window with a menu, a workspace region and a status region. The workspace
@@ -370,6 +370,33 @@ failure without a response is a Warning. The supervisor never logs source, outpu
   not save, as before.
 - **Not in this scope.** The experiment library (#11), the command palette (#12) and the shortcut settings (#13)
   add other ways to open and create tabs. Run is not connected to a tab yet.
+
+## Library
+
+[#11] adds the library: a panel on the left of the window. It searches the stored experiments.
+
+- **Search.** `ILibraryRepository.SearchAsync` takes a `LibraryQuery` (text, kind filter, page size, offset) and
+  returns one `LibraryPage` of `ExperimentSummary` rows. A summary has the title, the kind, the time of the last
+  edit and a preview of the first 200 characters of the source. It never holds the full source.
+- **Matching.** The text matches the title and the whole source, ignoring case. It matches the kind when it is
+  exactly `json`, `c#` or `csharp`. `%`, `_` and `\` match literally. The text is always a query parameter.
+  An ASCII text uses `LIKE`, which ignores case for ASCII only. A text with other letters uses a registered
+  function that ignores case by Unicode rules.
+- **No index yet.** The search scans the table in the order of the last edit (`ix_experiments_modified_at`). A test with
+  5,000 experiments of 1,000 characters finishes three searches in well under the 5 s limit of the test.
+  Measure before you add SQLite FTS. The search runs on a thread-pool thread. The page is at most 200 rows.
+- **Order.** The newest edit comes first. A page shows 50 rows. "Load more" adds the next page.
+- **Stale results.** A search starts 200 ms after the last key. A newer search cancels the older one, and a result
+  of an old search is dropped on the UI thread. A failed search keeps the earlier list and shows a sentence.
+- **Selection.** After a refresh, the selected row stays selected when its experiment is still in the list.
+- **Open.** Enter, a double click or Enter in the search box opens the experiment through
+  `WorkspaceViewModel.OpenAsync`. An open experiment only gets the focus: one experiment has one tab.
+- **Refresh.** The list refreshes after autosave writes any experiment, so a rename or an edit shows once it is
+  stored. The title comes from the tab menu, "Rename…". A search never writes.
+- **Keyboard.** Down moves from the search box to the list. Up from the first row and Escape in the list move back
+  to the box. Escape in the box empties it. The View menu shows or hides the panel.
+- **Not in this scope.** No tags, folders, semantic search or delete. The command palette (#12) and Ctrl+P (#13) will
+  focus the search box.
 
 ## Run history
 
