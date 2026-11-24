@@ -539,6 +539,58 @@ the command. The CLI uses the same worker and the same limits. See [#19].
 
 The release documentation states this limit. See [#15].
 
+## Reliability and known limitations
+
+[#14] adds fault tests for the boundaries that fail in real use. This section lists what the app promises and what it does not.
+
+**Outcome of each worker failure.** A failure of the worker never throws into the UI. `WorkerSupervisor.RunAsync` always returns a
+report with the ID and the revision of the request.
+
+| What the worker does | Outcome | Code |
+| --- | --- | --- |
+| Ends the run in time with a valid result | `Success`, `CompilationFailed` or `RuntimeFailed` | none |
+| Runs longer than the time limit | `TimedOut` | `TimeLimitExceeded` |
+| The user cancels | `Canceled` | none |
+| Crashes (non-zero exit code, `FailFast`) | `WorkerFailed` | `WorkerCrashed` |
+| Exits with code 0 and no result | `WorkerFailed` | `WorkerExitedEarly` |
+| Sends a cut frame, a length above 4 MiB, a negative length, bad JSON or `null` | `WorkerFailed` | `WorkerMalformedMessage` |
+| Sends a result for another run or revision, an outcome it cannot report, a value over the result policy, or output over the limit | `WorkerFailed` | `WorkerMalformedMessage` |
+| Speaks another protocol version | `WorkerFailed` | `WorkerProtocolMismatch` |
+| Does not start | `WorkerFailed` | `WorkerStartFailed` |
+
+The supervisor reads the error stream of the worker, so a flood on it cannot block the run. A time limit and a cancel
+stop the worker and its process tree. The worker also stops itself when the app is gone.
+
+**How the tests inject faults.** `tests/Codepad.FaultWorker` is a small program that speaks the protocol wrongly in one chosen
+way. `FaultInjectionTests` starts it in place of the real worker. It is not shipped. The real worker runs the integration
+tests for huge, cyclic and slow values (`BoundedOutputIntegrationTests`): each stays inside the limits and the saved run
+reads back from SQLite.
+
+**Data safety.** The latest edit lives in the editor buffer. A failed write keeps the buffer, shows "Save failed" on the
+tab and does not mark the tab clean. The next edit, or a close request, tries again. A close with a failed save needs a
+second request to discard the text. Committed data survives a forced stop: SQLite uses WAL with `synchronous=FULL`,
+and the tests cut the process between transactions. A restored session never runs code. `NoAutomaticExecutionTests`
+counts the run requests during restore, edit, autosave, switch, open, library, history and palette use. The count stays 0.
+
+**Logging.** The supervisor logs `run.started`, `run.completed` (outcome and duration), `run.stopped` (reason `time_limit` or
+`canceled`), `run.worker_failed` (exit code) and `run.malformed_response` (the type of the problem). The app logs
+`autosave.failed` (reason code, once for each failure), `workspace.storage_failed`, `library.search_failed`, `settings.failed`,
+`run.failed` and `command.failed`. A log has IDs, codes, counts and times. It has no source, input, output, result, title or path.
+Tests check that the source of a run is not in a log.
+
+**Known limitations.**
+
+- The worker is not a sandbox. Code runs with the rights of the user. Run only code that you trust.
+- There is no memory limit and no CPU limit. A script that allocates all memory can hurt the whole machine until the time
+  limit stops it. The time limit and the stop of the process tree work the same on Linux and Windows. Resource limits do not
+  exist on either OS in v0.1, and CodePad does not claim an equal sandbox on both.
+- A child process that leaves the process tree on purpose (for example a daemon that detaches itself) is not stopped.
+- The time limit is 1 to 600 seconds. A change applies to new runs only.
+- Output has a limit of 100,000 characters for each stream. The result has the limits of `ResultPolicy.Default`. A longer value is cut and says so.
+- A run holds the interface only through its own panel. Two runs at once are not possible: one gate allows one run.
+- A held Ctrl+Enter starts a new run each time the last one ends, because the UI toolkit gives no key repeat flag.
+- Two CodePad processes on one database take turns (SQLite locks). The settings file has no lock: the last write wins.
+
 ## Storage and retention
 
 - One SQLite database in the per-user data folder: `codepad.db`. See [#3].

@@ -133,7 +133,8 @@ internal static partial class Program
             () => new CSharpEditorViewModel(new CSharpHighlighter(), new CSharpAnalyzer(), TimeProvider.System, DiagnosticsCoordinator.DefaultDebounce, reportFailure: reason => LogAnalysisFailed(logger, reason), completion: new CSharpCompletionProvider(), reportCompletionFailure: reason => LogCompletionFailed(logger, reason), preferences: settings.Preferences),
             () => new JsonToolViewModel(new JsonEvaluator(), TimeProvider.System, LiveJsonCoordinator.DefaultDebounce, reportFailure: reason => LogJsonFailed(logger, reason), preferences: settings.Preferences),
             reportFailure: reason => LogWorkspaceStorageFailed(logger, reason),
-            runs: runs);
+            runs: runs,
+            reportSaveFailure: reason => LogAutosaveFailed(logger, reason));
         return workspace;
     }
 
@@ -189,4 +190,8 @@ internal static partial class Program
     [LoggerMessage(EventId = 11, EventName = "settings.failed", Level = LogLevel.Warning,
         Message = "The settings could not be saved or the history could not be cleared: {Reason}")]
     private static partial void LogSettingsFailed(ILogger logger, string reason);
+
+    [LoggerMessage(EventId = 12, EventName = "autosave.failed", Level = LogLevel.Warning,
+        Message = "An autosave failed: {Reason}. The text stays in the editor.")]
+    private static partial void LogAutosaveFailed(ILogger logger, string reason);
 }

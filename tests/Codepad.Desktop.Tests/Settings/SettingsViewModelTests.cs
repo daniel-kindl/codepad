@@ -132,6 +132,22 @@ public sealed class SettingsViewModelTests
     }
 
     [Fact]
+    public void AStoreThatThrowsAnotherKindOfExceptionDoesNotStopTheWindowOrLoseTheChange()
+    {
+        SettingsViewModel model = new SettingsViewModel(new ThrowingStore(), UserSettings.Default, null, failures.Add);
+        List<UserSettings> changes = [];
+        model.Changed += changes.Add;
+
+        model.FontSize = 25;
+
+        Assert.Equal(25, model.Current.EditorFontSize);
+        Assert.Equal(25, model.Preferences.FontSize);
+        Assert.Single(changes);
+        Assert.Equal(SettingsViewModel.SAVE_FAILED_TEXT, model.SaveStatus);
+        Assert.Equal([nameof(IOException)], failures);
+    }
+
+    [Fact]
     public void ResetRestoresTheDefaultsAndClearsTheErrors()
     {
         SettingsViewModel model = Create(new UserSettings(ThemePreference.Dark, 30, 8, 100, 500, false));
@@ -233,6 +249,13 @@ public sealed class SettingsViewModelTests
         Assert.Contains("Ctrl+W", keys);
         Assert.Contains("Escape", keys);
         Assert.Equal(keys.Length, keys.Distinct().Count());
+    }
+
+    private sealed class ThrowingStore : IUserSettingsStore
+    {
+        public UserSettingsReadResult Read() => new(UserSettings.Default, []);
+
+        public void Save(UserSettings settings) => throw new IOException("secret path /home/user");
     }
 
     private sealed class FakeUpdates : IUpdateCheckHandoff

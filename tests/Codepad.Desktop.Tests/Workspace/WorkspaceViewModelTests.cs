@@ -437,4 +437,67 @@ public sealed class WorkspaceViewModelTests
 
         Assert.Equal(before, tab.Title);
     }
+
+    [Fact]
+    public async Task RapidEditsDuringAFailedWriteKeepTheLatestTextAndALaterWriteSavesIt()
+    {
+        WorkspaceFixture fixture = new WorkspaceFixture();
+        await fixture.Model.RestoreAsync(TestContext.Current.CancellationToken);
+        CSharpTabViewModel tab = Assert.IsType<CSharpTabViewModel>(fixture.Model.Tabs[0]);
+        await tab.FlushAsync(TestContext.Current.CancellationToken);
+        fixture.Experiments.Failure = new ExperimentStorageException("busy");
+
+        for (int key = 1; key <= 20; key++)
+        {
+            tab.Editor.OnTextEdited("text " + key);
+            fixture.Time.Advance(TimeSpan.FromMilliseconds(200));
+        }
+
+        await tab.FlushAsync(TestContext.Current.CancellationToken);
+        fixture.RunUi();
+
+        Assert.True(tab.HasSaveProblem);
+        Assert.Equal("text 20", tab.Source);
+        Assert.Equal("text 20", tab.Editor.Text);
+        Assert.NotEqual("text 20", fixture.Experiments.Stored(tab.Id)?.Source);
+
+        fixture.Experiments.Failure = null;
+        tab.Editor.OnTextEdited("text 21");
+        await tab.FlushAsync(TestContext.Current.CancellationToken);
+        fixture.RunUi();
+
+        Assert.False(tab.HasSaveProblem);
+        Assert.Equal("text 21", fixture.Experiments.Stored(tab.Id)?.Source);
+    }
+
+    [Fact]
+    public async Task AnAutosaveFailureIsReportedOnceWithOnlyTheReasonCode()
+    {
+        List<string> reports = [];
+        WorkspaceFixture fixture = new WorkspaceFixture(reportSaveFailure: reports.Add);
+        await fixture.Model.RestoreAsync(TestContext.Current.CancellationToken);
+        CSharpTabViewModel tab = Assert.IsType<CSharpTabViewModel>(fixture.Model.Tabs[0]);
+        await tab.FlushAsync(TestContext.Current.CancellationToken);
+        fixture.RunUi();
+        fixture.Experiments.Failure = new ExperimentStorageException("disk_full");
+
+        tab.Editor.OnTextEdited("SECRET_TEXT");
+        await tab.FlushAsync(TestContext.Current.CancellationToken);
+        await tab.FlushAsync(TestContext.Current.CancellationToken);
+        fixture.RunUi();
+
+        Assert.Equal(["disk_full"], reports);
+
+        // A save that works ends the failure. A new failure is reported again.
+        fixture.Experiments.Failure = null;
+        tab.Editor.OnTextEdited("more");
+        await tab.FlushAsync(TestContext.Current.CancellationToken);
+        fixture.RunUi();
+        fixture.Experiments.Failure = new ExperimentStorageException("read_only");
+        tab.Editor.OnTextEdited("again");
+        await tab.FlushAsync(TestContext.Current.CancellationToken);
+        fixture.RunUi();
+
+        Assert.Equal(["disk_full", "read_only"], reports);
+    }
 }
