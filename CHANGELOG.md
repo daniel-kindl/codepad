@@ -15,6 +15,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The
 
 ### Added
 
+- Command palette and Run (#12): Ctrl+K opens a searchable palette with New C# experiment, New JSON experiment, Run
+  C#, Cancel run, Open library, Copy result, Next and Previous tab, Close tab, Settings and Switch to each open tab. Search
+  ignores case and finds abbreviations. A command that cannot run is listed with the reason and never runs. Escape
+  closes the palette and gives the focus back. Ctrl+P opens the library search. Run C# (Ctrl+Enter, the Run menu or the
+  palette) now runs the active C# tab in the worker, shows the result, saves a history record and shows the history
+  panel. Only one run goes at a time, and Cancel run stops it. Run never starts for a JSON tab.
 - Searchable library (#11): a panel on the left lists the stored experiments, newest edit first, with the kind, the time of
   the last edit and a short preview. Search finds the title, the source and the kind (`json`, `c#`), ignoring case, also
   for letters outside ASCII. Special characters match literally. A kind filter, a bounded page with "Load more"
@@ -27,7 +33,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The
   tab does not delete the experiment. The app restores the open tabs and the active tab after a restart and
   omits an experiment that no longer exists. A tab shows "Save failed" when autosave fails, and a tab or the window
   that cannot save stays open on the first close request. Schema step 3 removes the unused table `tab_session`.
-  The live JSON tool is now a tab. Run is not connected to a tab yet.
+  The live JSON tool is now a tab.
 - Live JSON tool (#9): `JsonEvaluator` checks and formats JSON with `System.Text.Json` after a short pause in
   typing, with no Run command. It limits the size to 1,000,000 bytes and the depth to 64. A valid document
   shows as indented text and as a tree in the result panel. An invalid document shows the line and column of
@@ -40,7 +46,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The
   keeps the newest 100 runs of each experiment and removes the older ones in the same transaction as the new
   record. It never removes an experiment or its current source. A history panel lists the saved runs, newest
   first, shows the saved source and result of one run as read-only, and has a Rerun button. The window shows the
-  panel only when it has a history model. No Run command or experiment list uses it yet.
+  panel only when it has a history model.
 - Result panel (#7): a status header, and tabs for the result, problems, standard output and standard error.
   A number, a string or null shows as selectable text. An object or nested list shows as an expandable tree
   that opens its rows when asked. A list of objects with the same properties shows as a table. A cut value says

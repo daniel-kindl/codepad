@@ -12,7 +12,7 @@ For the product scope, see [PRODUCT.md](PRODUCT.md).
 `Codepad.Desktop`. Each module has its own assembly. [#2] added the domain model. See
 [Domain model](#domain-model). [#3] added storage. See
 [Storage and retention](#storage-and-retention). [#4] added Contracts and Worker. See
-[C# script semantics](#c-script-semantics) and [Worker protocol](#worker-protocol). [#5] added the C# editor, [#6] added completion and [#7] added the result panel. See [C# editor](#c-editor). [#8] added run history, [#9] added live JSON and [#10] added tabs and [#11] added the library. [#19] creates
+[C# script semantics](#c-script-semantics) and [Worker protocol](#worker-protocol). [#5] added the C# editor, [#6] added completion and [#7] added the result panel. See [C# editor](#c-editor). [#8] added run history, [#9] added live JSON and [#10] added tabs, [#11] added the library and [#12] added the command palette and Run. [#19] creates
 the CLI.
 
 The Desktop app opens one window with a menu, a workspace region and a status region. The workspace
@@ -200,8 +200,8 @@ Rules for the run. See [#4] and [#7].
   a duplicate name.
 - Live evaluation makes no history record. Autosave stores the source of a JSON experiment as for a C#
   experiment, also when the JSON is not valid.
-- The tool view (`JsonToolView`) is not in the main window yet. The tabs and the experiment list (#10, #11)
-  connect it and the autosave.
+- The tool view (`JsonToolView`) is the content of a JSON tab. See [Tabs and session](#tabs-and-session). The
+  Run command never evaluates it.
 
 ### C# script semantics
 
@@ -334,8 +334,8 @@ failure without a response is a Warning. The supervisor never logs source, outpu
   A run that does not succeed keeps the value of the last successful run on screen and says so in a banner.
   Problems, standard output and standard error are separate tabs. A cut output says how much it shows.
 - **Copy.** The Copy button puts the bounded value on the clipboard as indented JSON.
-- **Not connected yet.** No Run command exists yet, so the panel shows "No run yet". A later issue connects
-  `ResultsViewModel.Show` to a run. The history panel ([#8]) already calls it for a saved run.
+- **Connected.** [#12] connects the panel to Run. See [Commands and Run](#commands-and-run). The panel is shared
+  by all C# tabs and shows the last run of the active tab. A JSON tab has its own panel for the live preview.
 
 ## Tabs and session
 
@@ -369,7 +369,7 @@ failure without a response is a Warning. The supervisor never logs source, outpu
 - **Without storage** (the data folder or the database is not usable), the window shows one C# editor that does
   not save, as before.
 - **Not in this scope.** The experiment library (#11), the command palette (#12) and the shortcut settings (#13)
-  add other ways to open and create tabs. Run is not connected to a tab yet.
+  add other ways to open and create tabs.
 
 ## Library
 
@@ -398,6 +398,36 @@ failure without a response is a Warning. The supervisor never logs source, outpu
   to the box. Escape in the box empties it. The View menu shows or hides the panel.
 - **Not in this scope.** No tags, folders, semantic search or delete. The command palette (#12) and Ctrl+P (#13) will
   focus the search box.
+
+## Commands and Run
+
+[#12] adds the command palette and connects Run.
+
+- **Commands.** `AppCommand` (Application) has an ID, a label, an availability function, a handler, an optional key
+  hint and optional keywords. `BuiltInCommands` (Desktop) makes the list each time the palette opens: New C#
+  experiment, New JSON experiment, Run C#, Cancel run, Open library, Copy result, Next tab, Previous tab, Close tab,
+  Settings, and one "Switch to" command for each other open tab. A handler calls code of the app. No command runs
+  text that the user typed. There is no plugin registry and no global shortcut.
+- **Search.** `CommandSearch.Rank` ranks by exact label, label prefix, word start, substring and characters in order.
+  It ignores case. The text is never a pattern. A keyword ranks below a label match. Equal scores keep the
+  registration order.
+- **Disabled commands.** The palette lists a command that cannot run, with the word "Unavailable" and the reason. A
+  disabled command never runs. The palette reads the availability again when the user chooses a command, so a
+  command that became unavailable does not run. A chosen command runs once: the palette closes first.
+  Settings is listed as unavailable until [#13].
+- **Keys.** Ctrl+K opens the palette from the main window. The search box has the focus. Up, Down, PageUp and
+  PageDown move the selection, Enter runs the command and Escape closes it. A click on a row runs it. A click outside closes it.
+  Ctrl+P opens the library search. Ctrl+Enter runs the active C# tab. [#13] will make the keys settings.
+- **Focus.** The window remembers the focused control when the palette opens. It gives the focus back when the palette
+  closes, before the command runs. A command that moves the focus, for example Open library, then wins.
+- **Run.** `RunController` runs a C# tab only on an explicit request: Run command, Ctrl+Enter or the Run menu. It takes
+  the snapshot from the current buffer, runs it in the worker through `RunHistoryService` and shows the report. One run
+  goes at a time. Cancel stops it, and the record then has the outcome Canceled. Run is not available for a JSON
+  tab. It never starts a live JSON evaluation. A run for a tab that is no longer active does not replace the panel:
+  the tab shows its last run when it becomes active again.
+- **The worker.** `Program` looks for `Codepad.Worker.dll` next to the app. The worker uses one working folder,
+  `runs`, in the data folder. When the program is missing, Run is unavailable and says so.
+- **Not in scope.** Settings (#13), the CLI (#19) and the hardening of worker failures (#14).
 
 ## Run history
 
@@ -429,9 +459,9 @@ failure without a response is a Warning. The supervisor never logs source, outpu
   The foreign key to `experiments` has no delete rule: the change that deletes experiments must choose one.
   The last selected experiment is not stored here. [#10] stores the tab session. This change tests only that
   the history of an experiment survives a restart.
-- **Not connected yet.** The window shows the panel only when it gets a history model. The app has no current
-  experiment and no Run command yet, so `Program` does not create one. The change that adds them calls
-  `RunHistoryViewModel.ShowExperimentAsync` and `RunHistoryService.RunAsync`.
+- **Connected.** [#12] creates one history model for all C# tabs. A C# tab shows the panel on its right. The
+  controller calls `RunHistoryViewModel.ShowExperimentAsync` when a tab becomes active and after a run, and Run
+  uses `RunHistoryService.RunAsync`. When the worker program is missing, the app has no history model and no Run.
 - **Logging.** History logs nothing. The source and the output can hold secrets. The caller logs the
   `StorageFailure` reason code.
 

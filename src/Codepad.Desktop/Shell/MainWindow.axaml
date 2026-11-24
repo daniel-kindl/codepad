@@ -6,6 +6,7 @@
         xmlns:history="using:Codepad.Desktop.History"
         xmlns:workspace="using:Codepad.Desktop.Workspace"
         xmlns:library="using:Codepad.Desktop.Library"
+        xmlns:commands="using:Codepad.Desktop.Commands"
         x:Class="Codepad.Desktop.Shell.MainWindow"
         x:DataType="shell:MainWindowViewModel"
         Title="{Binding Title}"
@@ -14,6 +15,7 @@
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource ShellWorkspaceBackgroundBrush}">
 
+  <Panel>
   <DockPanel>
 
     <Menu DockPanel.Dock="Top" AutomationProperties.Name="Main menu">
@@ -27,7 +29,12 @@
         <Separator />
         <MenuItem Header="E_xit" AutomationProperties.Name="Exit" Click="OnExitClick" />
       </MenuItem>
+      <MenuItem Header="_Run" AutomationProperties.Name="Run">
+        <MenuItem Header="_Run C#" InputGesture="Ctrl+Enter" IsEnabled="{Binding HasWorkspace}" Click="OnRunClick" AutomationProperties.Name="Run C#" />
+        <MenuItem Header="_Cancel run" IsEnabled="{Binding HasWorkspace}" Click="OnCancelRunClick" AutomationProperties.Name="Cancel run" />
+      </MenuItem>
       <MenuItem Header="_View" AutomationProperties.Name="View">
+        <MenuItem Header="_Command palette" InputGesture="Ctrl+K" IsEnabled="{Binding HasWorkspace}" Click="OnOpenPaletteClick" AutomationProperties.Name="Command palette" />
         <MenuItem Header="_Library" IsEnabled="{Binding HasLibrary}" Click="OnToggleLibraryClick" AutomationProperties.Name="Show or hide the library" />
       </MenuItem>
     </Menu>
@@ -84,5 +91,8 @@
     </Panel>
 
   </DockPanel>
+
+  <commands:CommandPaletteView x:Name="PaletteView" />
+  </Panel>
 
 </Window>

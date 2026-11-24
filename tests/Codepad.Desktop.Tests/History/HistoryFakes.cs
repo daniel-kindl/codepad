@@ -33,6 +33,8 @@ internal sealed class MemoryHistory : IRunHistoryRepository
 
     private readonly List<RunRecord> records = [];
 
+    public IReadOnlyList<RunRecord> Records => records;
+
     public string? FailWith { get; set; }
 
     public string? FailList { get; set; }
