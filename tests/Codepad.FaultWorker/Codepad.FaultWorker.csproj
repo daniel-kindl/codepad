@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- A worker that breaks the protocol on purpose. The tests start it in place of the real worker. It is not shipped. -->
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Codepad.Contracts\Codepad.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

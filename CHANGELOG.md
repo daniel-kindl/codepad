@@ -10,11 +10,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The
 
 ### Fixed
 
+- A settings save that throws an exception other than the expected storage error no longer stops the settings window
+  or loses the change for the session.
 - A C# source that is larger than the worker protocol limit now gives a `WorkerFailed` report with the code
   `WorkerRequestTooLarge`. Before, the runner threw `FrameException`.
 
 ### Added
 
+- Hardening (#14): a fault-injection worker (`tests/Codepad.FaultWorker`, not shipped) and tests for crash, hang, hang with a child
+  process, slow response, cancel, error-stream flood, broken frames and impossible results. Each gives the right outcome and
+  code, ends in time and leaves no process behind. Integration tests run huge, cyclic and slow values in the real worker and read the
+  saved runs back. A test audits that restore, edit, autosave, switching, the library, the history and the palette never start a run. New
+  log events `run.started`, `run.stopped` and `autosave.failed` carry IDs, reasons and times, never source. ARCHITECTURE.md
+  lists the outcome of each failure, the data-safety rules and the known limitations.
 - Settings and shortcuts (#13): a settings window (File menu, Ctrl+, or the palette) changes the theme, the editor font
   size, the indentation width, the run timeout and the number of saved runs for each experiment, and keeps the
   update-check preference. A valid change applies at once and is saved in `settings.json`. An invalid number is refused

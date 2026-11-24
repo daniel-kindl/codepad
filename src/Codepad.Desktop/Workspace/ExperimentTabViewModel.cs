@@ -91,6 +91,12 @@ public abstract class ExperimentTabViewModel : INotifyPropertyChanged, IAsyncDis
     /// <summary>Gets a value indicating whether the buffer has edits that storage does not hold yet and that no failed save has stopped.</summary>
     public bool IsUnsaved => session.State is SaveState.Dirty or SaveState.Saving;
 
+    /// <summary>Gets the reason code of the last failed save, or null. It never holds source or a path.</summary>
+    public string? SaveErrorReason => session.ErrorReason;
+
+    /// <summary>Gets or sets a value indicating whether the app logged the current failed save. The workspace sets it so that one failure is logged once.</summary>
+    internal bool FailureReported { get; set; }
+
     /// <summary>Gets a value indicating whether the last save failed. The text is still in the editor.</summary>
     public bool HasSaveProblem => session.State == SaveState.Error;
 

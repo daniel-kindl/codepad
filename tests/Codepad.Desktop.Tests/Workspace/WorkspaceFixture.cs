@@ -16,7 +16,7 @@ internal sealed class WorkspaceFixture
 {
     private readonly Queue<Action> ui = new Queue<Action>();
 
-    public WorkspaceFixture(Func<WorkspaceFixture, RunController>? createRuns = null)
+    public WorkspaceFixture(Func<WorkspaceFixture, RunController>? createRuns = null, Action<string>? reportSaveFailure = null)
     {
         Session = new SessionStore(Preferences);
         Model = new WorkspaceViewModel(
@@ -27,7 +27,8 @@ internal sealed class WorkspaceFixture
             () => new JsonToolViewModel(new JsonEvaluator(), Time, TimeSpan.FromMilliseconds(250), Post),
             Post,
             Failures.Add,
-            createRuns?.Invoke(this));
+            createRuns?.Invoke(this),
+            reportSaveFailure);
     }
 
     public ManualTimeProvider Time { get; } = new ManualTimeProvider();

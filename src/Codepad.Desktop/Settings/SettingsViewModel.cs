@@ -297,10 +297,11 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
             store.Save(next);
             SaveStatus = SAVED_TEXT;
         }
-        catch (UserSettingsStorageException exception)
+        catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             // The setting stays in use for this session. The user must know that it will not survive a restart.
-            reportFailure(exception.Reason);
+            // A store can throw another kind of exception too. The window must not stop, and only a code goes out.
+            reportFailure(exception is UserSettingsStorageException storage ? storage.Reason : exception.GetType().Name);
             SaveStatus = SAVE_FAILED_TEXT;
         }
 

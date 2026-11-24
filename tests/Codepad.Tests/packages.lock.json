@@ -238,6 +238,12 @@
       "codepad.domain": {
         "type": "Project"
       },
+      "codepad.faultworker": {
+        "type": "Project",
+        "dependencies": {
+          "Codepad.Contracts": "[0.1.0, )"
+        }
+      },
       "codepad.infrastructure": {
         "type": "Project",
         "dependencies": {

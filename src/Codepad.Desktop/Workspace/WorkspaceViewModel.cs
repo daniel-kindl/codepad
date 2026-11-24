@@ -31,6 +31,7 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IAsyncDisposabl
     private readonly Action<Action> post;
     private readonly Action<string> reportFailure;
     private readonly RunController? runs;
+    private readonly Action<string> reportSaveFailure;
     private const int MAX_FLUSH_PASSES = 5;
 
     // A double click or a held key repeats a request within this time. Only a later request means "discard".
@@ -54,7 +55,8 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IAsyncDisposabl
     /// <param name="post">Runs an action on the UI thread. Null uses the Avalonia UI thread.</param>
     /// <param name="reportFailure">Receives the exception type name when the session cannot be saved or read. Null ignores it.</param>
     /// <param name="runs">Runs C# tabs and owns the shared result and history panels. Null means that the app cannot run code.</param>
-    public WorkspaceViewModel(IExperimentRepository experiments, SessionStore sessionStore, TimeProvider timeProvider, Func<CSharpEditorViewModel> createEditor, Func<JsonToolViewModel> createTool, Action<Action>? post = null, Action<string>? reportFailure = null, RunController? runs = null)
+    /// <param name="reportSaveFailure">Receives the reason code once when an autosave fails, for example <c>disk_full</c>. It never holds source or a path. Null ignores it.</param>
+    public WorkspaceViewModel(IExperimentRepository experiments, SessionStore sessionStore, TimeProvider timeProvider, Func<CSharpEditorViewModel> createEditor, Func<JsonToolViewModel> createTool, Action<Action>? post = null, Action<string>? reportFailure = null, RunController? runs = null, Action<string>? reportSaveFailure = null)
     {
         ArgumentNullException.ThrowIfNull(experiments);
         ArgumentNullException.ThrowIfNull(sessionStore);
@@ -69,6 +71,7 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IAsyncDisposabl
         this.post = post ?? (action => Dispatcher.UIThread.Post(action));
         this.reportFailure = reportFailure ?? (_ => { });
         this.runs = runs;
+        this.reportSaveFailure = reportSaveFailure ?? (_ => { });
     }
 
     /// <inheritdoc />
@@ -425,9 +428,23 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IAsyncDisposabl
 
     private void OnTabChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(ExperimentTabViewModel.State) && sender is ExperimentTabViewModel { State: SaveState.Saved })
+        if (e.PropertyName == nameof(ExperimentTabViewModel.State) && sender is ExperimentTabViewModel changed)
         {
-            ExperimentSaved?.Invoke();
+            if (changed.State == SaveState.Error && !changed.FailureReported)
+            {
+                // One failure is logged once, not at each state change of the same failure.
+                changed.FailureReported = true;
+                reportSaveFailure(changed.SaveErrorReason ?? "unknown");
+            }
+            else if (changed.State != SaveState.Error)
+            {
+                changed.FailureReported = false;
+            }
+
+            if (changed.State == SaveState.Saved)
+            {
+                ExperimentSaved?.Invoke();
+            }
         }
 
         if (ReferenceEquals(sender, ActiveTab) && e.PropertyName == nameof(ExperimentTabViewModel.SaveText))

@@ -34,6 +34,7 @@ public sealed partial class WorkerSupervisor(WorkerLaunchOptions options, ILogge
             throw new ArgumentException($"The policy is for {request.Policy.Kind}. The worker runs only C#.", nameof(request));
         }
 
+        LogRunStarted(_logger, request.Id.Value, request.Policy.TimeLimit.TotalSeconds);
         Stopwatch clock = Stopwatch.StartNew();
         RunReport report = await SuperviseAsync(request, cancellationToken).ConfigureAwait(false);
         LogRunCompleted(_logger, request.Id.Value, report.Result.Outcome, clock.ElapsedMilliseconds);
@@ -44,6 +45,7 @@ public sealed partial class WorkerSupervisor(WorkerLaunchOptions options, ILogge
     {
         if (cancellationToken.IsCancellationRequested)
         {
+            LogStopped(_logger, request.Id.Value, "canceled");
             return Failed(request, ExecutionOutcome.Canceled, null, null);
         }
 
@@ -63,6 +65,7 @@ public sealed partial class WorkerSupervisor(WorkerLaunchOptions options, ILogge
         catch (OperationCanceledException) when (limit.IsCancellationRequested)
         {
             // A cancel from the caller wins over a time limit that ends at the same time.
+            LogStopped(_logger, request.Id.Value, cancellationToken.IsCancellationRequested ? "canceled" : "time_limit");
             return cancellationToken.IsCancellationRequested
                 ? Failed(request, ExecutionOutcome.Canceled, null, null)
                 : Failed(request, ExecutionOutcome.TimedOut, "TimeLimitExceeded", $"The run did not finish in {request.Policy.TimeLimit.TotalSeconds:0.###} s. The worker was stopped.");
@@ -289,15 +292,21 @@ public sealed partial class WorkerSupervisor(WorkerLaunchOptions options, ILogge
             null);
     }
 
-    [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "C# run {ExecutionId} ended with {Outcome} after {ElapsedMs} ms.")]
+    [LoggerMessage(EventId = 1, EventName = "run.completed", Level = LogLevel.Information, Message = "C# run {ExecutionId} ended with {Outcome} after {ElapsedMs} ms.")]
     private static partial void LogRunCompleted(ILogger logger, Guid executionId, ExecutionOutcome outcome, long elapsedMs);
 
-    [LoggerMessage(EventId = 2, Level = LogLevel.Warning, Message = "The worker of run {ExecutionId} ended with exit code {ExitCode} and no result.")]
+    [LoggerMessage(EventId = 2, EventName = "run.worker_failed", Level = LogLevel.Warning, Message = "The worker of run {ExecutionId} ended with exit code {ExitCode} and no result.")]
     private static partial void LogWorkerFailed(ILogger logger, Guid executionId, int exitCode);
 
-    [LoggerMessage(EventId = 3, Level = LogLevel.Warning, Message = "The worker of run {ExecutionId} sent a result that breaks the protocol rules ({Reason}).")]
+    [LoggerMessage(EventId = 3, EventName = "run.malformed_response", Level = LogLevel.Warning, Message = "The worker of run {ExecutionId} sent a result that breaks the protocol rules ({Reason}).")]
     private static partial void LogMalformedResponse(ILogger logger, Guid executionId, string reason);
 
-    [LoggerMessage(EventId = 4, Level = LogLevel.Error, Message = "The worker process did not start.")]
+    [LoggerMessage(EventId = 4, EventName = "run.start_failed", Level = LogLevel.Error, Message = "The worker process did not start.")]
     private static partial void LogStartFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(EventId = 5, EventName = "run.started", Level = LogLevel.Information, Message = "C# run {ExecutionId} started with a time limit of {TimeLimitSeconds} s.")]
+    private static partial void LogRunStarted(ILogger logger, Guid executionId, double timeLimitSeconds);
+
+    [LoggerMessage(EventId = 6, EventName = "run.stopped", Level = LogLevel.Warning, Message = "C# run {ExecutionId} was stopped. Reason: {Reason}.")]
+    private static partial void LogStopped(ILogger logger, Guid executionId, string reason);
 }
