@@ -134,6 +134,18 @@ public sealed record Experiment
         return input == Input ? this : new Experiment(Id, Kind, Title, Source, input, CreatedAt, Later(modifiedAt), Revision + 1);
     }
 
+    /// <summary>Changes the title and the source in one step. The revision goes up by 1, not by 2, so a writer that read revision N writes N+1 and a concurrent N+1 makes it stale.</summary>
+    /// <param name="title">The new title, or null to keep it.</param>
+    /// <param name="source">The new source, or null to keep it.</param>
+    /// <param name="modifiedAt">The time of the change.</param>
+    /// <returns>The changed experiment, or this experiment when nothing differs.</returns>
+    public Experiment WithChanges(string? title, string? source, DateTimeOffset modifiedAt)
+    {
+        string newTitle = title ?? Title;
+        string newSource = source ?? Source;
+        return newTitle == Title && newSource == Source ? this : new Experiment(Id, Kind, newTitle, newSource, Input, CreatedAt, Later(modifiedAt), Revision + 1);
+    }
+
     // A clock change must not lose an edit, so an earlier time does not stop it. ModifiedAt never goes back.
     private DateTimeOffset Later(DateTimeOffset modifiedAt) => modifiedAt > ModifiedAt ? modifiedAt : ModifiedAt;
 }

@@ -128,7 +128,7 @@ public abstract class ExperimentTabViewModel : INotifyPropertyChanged, IAsyncDis
     }
 
     /// <summary>The longest title in characters.</summary>
-    public static readonly int MaxTitleLength = 100;
+    public static readonly int MaxTitleLength = Codepad.Application.Experiments.ExperimentRules.MaxTitleLength;
 
     /// <summary>Renames the experiment. Autosave stores the new title like an edit of the text.</summary>
     /// <param name="title">The new title. Leading and trailing white space is removed.</param>

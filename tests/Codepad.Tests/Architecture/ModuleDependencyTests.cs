@@ -49,6 +49,12 @@ public sealed class ModuleDependencyTests
         { "Codepad.Language", "Codepad.Worker" },
         { "Codepad.Language", "Avalonia" },
         { "Codepad.Language", "Microsoft.Data.Sqlite" },
+        { "codepad", "Codepad.Desktop" },
+        { "codepad", "Codepad.Language" },
+        { "codepad", "Avalonia" },
+        { "codepad", "Microsoft.CodeAnalysis" },
+        { "Codepad.Application", "codepad" },
+        { "Codepad.Infrastructure", "codepad" },
     };
 
     [Theory]
