@@ -77,6 +77,21 @@ public sealed partial class TabStripView : UserControl
         }
     }
 
+    private async void OnRenameClick(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as Control)?.DataContext is not ExperimentTabViewModel tab || TopLevel.GetTopLevel(this) is not Window owner)
+        {
+            return;
+        }
+
+        RenameWindow dialog = new RenameWindow { EnteredTitle = tab.Title };
+        string? title = await dialog.ShowDialog<string?>(owner);
+        if (title is not null)
+        {
+            tab.Rename(title);
+        }
+    }
+
     private void OnMoveLeftClick(object? sender, RoutedEventArgs e) => MoveBy(sender, -1);
 
     private void OnMoveRightClick(object? sender, RoutedEventArgs e) => MoveBy(sender, 1);

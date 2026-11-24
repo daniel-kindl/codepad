@@ -70,6 +70,9 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IAsyncDisposabl
     /// <inheritdoc />
     public event PropertyChangedEventHandler? PropertyChanged;
 
+    /// <summary>Raised on the UI thread when an experiment has just been written to storage. The library listens to it.</summary>
+    public event Action? ExperimentSaved;
+
     /// <summary>Gets the open tabs in tab order.</summary>
     public ObservableCollection<ExperimentTabViewModel> Tabs { get; } = [];
 
@@ -397,6 +400,11 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IAsyncDisposabl
 
     private void OnTabChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(ExperimentTabViewModel.State) && sender is ExperimentTabViewModel { State: SaveState.Saved })
+        {
+            ExperimentSaved?.Invoke();
+        }
+
         if (ReferenceEquals(sender, ActiveTab) && e.PropertyName == nameof(ExperimentTabViewModel.SaveText))
         {
             Raise(nameof(ActiveSaveText));

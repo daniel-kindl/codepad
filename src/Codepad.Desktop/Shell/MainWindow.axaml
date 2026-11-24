@@ -5,6 +5,7 @@
         xmlns:results="using:Codepad.Desktop.Results"
         xmlns:history="using:Codepad.Desktop.History"
         xmlns:workspace="using:Codepad.Desktop.Workspace"
+        xmlns:library="using:Codepad.Desktop.Library"
         x:Class="Codepad.Desktop.Shell.MainWindow"
         x:DataType="shell:MainWindowViewModel"
         Title="{Binding Title}"
@@ -25,6 +26,9 @@
         <MenuItem Header="_Previous tab" InputGesture="Ctrl+Shift+Tab" IsEnabled="{Binding HasWorkspace}" Click="OnPreviousTabClick" AutomationProperties.Name="Previous tab" />
         <Separator />
         <MenuItem Header="E_xit" AutomationProperties.Name="Exit" Click="OnExitClick" />
+      </MenuItem>
+      <MenuItem Header="_View" AutomationProperties.Name="View">
+        <MenuItem Header="_Library" IsEnabled="{Binding HasLibrary}" Click="OnToggleLibraryClick" AutomationProperties.Name="Show or hide the library" />
       </MenuItem>
     </Menu>
 
@@ -49,6 +53,11 @@
                    AutomationProperties.Name="Tab notice"
                    AutomationProperties.LiveSetting="Assertive" />
       </StackPanel>
+    </Border>
+
+    <Border x:Name="LibraryPanel" DockPanel.Dock="Left" Width="280" IsVisible="{Binding HasLibrary}"
+            BorderBrush="{DynamicResource ShellBorderBrush}" BorderThickness="0,0,1,0">
+      <library:LibraryView x:Name="LibraryContent" DataContext="{Binding Library}" />
     </Border>
 
     <Border DockPanel.Dock="Right" Width="300" IsVisible="{Binding HasHistory}"

@@ -118,6 +118,15 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private void OnToggleLibraryClick(object? sender, RoutedEventArgs e)
+    {
+        LibraryPanel.IsVisible = !LibraryPanel.IsVisible;
+        if (LibraryPanel.IsVisible)
+        {
+            LibraryContent.FocusSearch();
+        }
+    }
+
     private void OnNextTabClick(object? sender, RoutedEventArgs e) => Workspace?.Next();
 
     private void OnPreviousTabClick(object? sender, RoutedEventArgs e) => Workspace?.Previous();

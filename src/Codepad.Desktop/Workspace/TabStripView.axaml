@@ -31,6 +31,7 @@
                         ToolTip.Tip="{Binding Title}">
               <StackPanel.ContextMenu>
                 <ContextMenu>
+                  <MenuItem Header="Rename…" Click="OnRenameClick" AutomationProperties.Name="Rename tab" />
                   <MenuItem Header="Move left" Click="OnMoveLeftClick" AutomationProperties.Name="Move tab left" />
                   <MenuItem Header="Move right" Click="OnMoveRightClick" AutomationProperties.Name="Move tab right" />
                   <MenuItem Header="Close" Click="OnCloseMenuClick" AutomationProperties.Name="Close tab" />

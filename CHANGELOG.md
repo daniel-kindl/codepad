@@ -15,6 +15,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The
 
 ### Added
 
+- Searchable library (#11): a panel on the left lists the stored experiments, newest edit first, with the kind, the time of
+  the last edit and a short preview. Search finds the title, the source and the kind (`json`, `c#`), ignoring case, also
+  for letters outside ASCII. Special characters match literally. A kind filter, a bounded page with "Load more"
+  and a message for an empty library or no match are included. Enter or a double click opens an experiment, or focuses
+  its tab when it is open. The list refreshes after autosave. A tab has a new "Rename…" command in its context
+  menu. The View menu shows or hides the library.
 - Tabs and session restore (#10): the window has a tab strip. Each tab is one experiment (C# or JSON) with its own
   text, caret, scroll position and save state. You can create, switch, reorder (drag, context menu, Ctrl+Shift+PageUp
   and PageDown) and close tabs. Ctrl+Tab and Ctrl+Shift+Tab cycle the tabs. Ctrl+W closes the active tab. Closing a
