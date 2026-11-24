@@ -169,8 +169,9 @@ public static class UpdateManifestParser
         name.Length is > 0 and <= 128
         && name.All(character => char.IsAsciiLetterOrDigit(character) || character is '.' or '-' or '_')
         && !name.StartsWith('.')
+        && !name.EndsWith('.')
         && !name.Contains("..", StringComparison.Ordinal)
-        && !s_reservedNames.Contains(Path.GetFileNameWithoutExtension(name), StringComparer.OrdinalIgnoreCase);
+        && !s_reservedNames.Contains(name.Split('.')[0], StringComparer.OrdinalIgnoreCase);
 
     private static bool IsSha256(string text) => text.Length == 64 && text.All(char.IsAsciiHexDigit);
 

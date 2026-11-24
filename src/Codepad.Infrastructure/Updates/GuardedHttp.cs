@@ -17,6 +17,9 @@ internal sealed class GuardedHttp(HttpClient client)
 {
     internal const int MAX_REDIRECTS = 3;
 
+    /// <summary>The longest time that a body can go without a byte. HttpClient.Timeout covers the headers only, so a stalled body needs its own limit.</summary>
+    internal static readonly TimeSpan StallTimeout = TimeSpan.FromSeconds(30);
+
     private static readonly string[] s_hosts = ["api.github.com", "github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com"];
 
     /// <summary>Makes an HTTP client that does not follow redirects, does not use cookies and has no default credentials.</summary>
@@ -108,6 +111,26 @@ internal sealed class GuardedHttp(HttpClient client)
         throw new GuardedHttpException("too_many_redirects");
     }
 
+    /// <summary>Reads one block and gives up when no byte arrives within <see cref="StallTimeout"/>.</summary>
+    /// <param name="stream">The body.</param>
+    /// <param name="buffer">The buffer.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <param name="limit">The stall limit. Null uses <see cref="StallTimeout"/>.</param>
+    /// <returns>The number of bytes, or 0 at the end.</returns>
+    public static async Task<int> ReadWithStallLimitAsync(Stream stream, byte[] buffer, CancellationToken cancellationToken, TimeSpan? limit = null)
+    {
+        using CancellationTokenSource stall = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        stall.CancelAfter(limit ?? StallTimeout);
+        try
+        {
+            return await stream.ReadAsync(buffer, stall.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new GuardedHttpException("timeout");
+        }
+    }
+
     /// <summary>Reads a body into memory, up to a limit.</summary>
     /// <param name="response">The response.</param>
     /// <param name="maxBytes">The largest body.</param>
@@ -126,7 +149,7 @@ internal sealed class GuardedHttp(HttpClient client)
             using MemoryStream buffer = new MemoryStream();
             byte[] chunk = new byte[16 * 1024];
             int read;
-            while ((read = await stream.ReadAsync(chunk, cancellationToken).ConfigureAwait(false)) > 0)
+            while ((read = await ReadWithStallLimitAsync(stream, chunk, cancellationToken).ConfigureAwait(false)) > 0)
             {
                 if (buffer.Length + read > maxBytes)
                 {

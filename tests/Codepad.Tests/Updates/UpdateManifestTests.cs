@@ -158,6 +158,8 @@ public sealed class UpdateManifestTests
     [InlineData("")]
     [InlineData("name with\nnewline.zip")]
     [InlineData("CON.zip")]
+    [InlineData("CON.tar.gz")]
+    [InlineData("name.")]
     public void AnAssetNameThatIsNotAPlainFileNameIsRejected(string name)
     {
         JsonObject json = Valid();

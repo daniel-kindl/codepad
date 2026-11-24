@@ -62,7 +62,7 @@ public sealed class FileUpdateInstaller(FileUpdateInstallerOptions options) : IU
                 return "CodePad is installed in a folder that you cannot change. Update it the same way you installed it.";
             }
 
-            return File.Exists(Path.Combine(options.HelperSourceDir, HELPER_NAME + ".dll")) ? null : "The update helper is missing from this installation.";
+            return HelperExists() ? null : "The update helper is missing from this installation.";
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -123,6 +123,10 @@ public sealed class FileUpdateInstaller(FileUpdateInstallerOptions options) : IU
             throw;
         }
     }
+
+    // The helper is a framework-dependent program (a dll with an apphost) in a developer build, and one self-contained single file program in a package.
+    private bool HelperExists() =>
+        File.Exists(Path.Combine(options.HelperSourceDir, HELPER_NAME + ".dll")) || File.Exists(Path.Combine(options.HelperSourceDir, HELPER_NAME + (OperatingSystem.IsWindows() ? ".exe" : string.Empty)));
 
     private static bool CanWrite(string directory)
     {

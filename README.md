@@ -8,7 +8,9 @@ scripts and tools quickly, offline. Run C# snippets on demand and check JSON as 
 - [PRODUCT.md](PRODUCT.md): v0.1 scope, out-of-scope features and release acceptance scenarios.
 - [Roadmap](PRODUCT.md#roadmap): milestones M0 to M4 and the issue dependencies.
 - [ARCHITECTURE.md](ARCHITECTURE.md): modules, the worker trust boundary and storage.
+- [docs/install.md](docs/install.md): requirements, install, first start, data location, backup, offline use, uninstall and the limits of v0.1.
 - [docs/updates.md](docs/updates.md): in-app updates, the release contract and the signing rules.
+- [docs/release.md](docs/release.md): how the owner prepares, signs and publishes a release. [docs/acceptance.md](docs/acceptance.md): the v0.1 acceptance matrix and the evidence.
 - [docs/cli.md](docs/cli.md): the `codepad` command line for AI agents and scripts: commands, JSON schema, exit codes and the trusted-code warning.
 
 ## Requirements
@@ -27,6 +29,8 @@ scripts and tools quickly, offline. Run C# snippets on demand and check JSON as 
 | `src/Codepad.Infrastructure` | IO adapters, including the OS-specific folder locator. |
 | `src/Codepad.Language` | The Roslyn language service of the editor: syntax coloring and diagnostics. |
 | `src/Codepad.Desktop` | The Avalonia app and the composition root. |
+| `tools/Codepad.ReleaseTool` | The `codepad-release` tool for the owner: packages, manifest, signature and checks. It never publishes. |
+| `packaging/` | The install and uninstall scripts for Linux and Windows. |
 | `src/Codepad.Updater` | The helper that swaps the installation after an update and rolls back on failure. |
 | `src/Codepad.Cli` | The `codepad` command line for agents and scripts. A second composition root. |
 | `tests/Codepad.Tests` | Unit tests and the module dependency tests. |

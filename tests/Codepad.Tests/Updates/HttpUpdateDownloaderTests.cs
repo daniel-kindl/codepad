@@ -182,6 +182,56 @@ public sealed class HttpUpdateDownloaderTests : IDisposable
         Assert.Empty(http.Requests);
     }
 
+    [Fact]
+    public async Task AStalledBodyEndsWithATimeoutCodeInsteadOfHangingForever()
+    {
+        using NeverEndingStream stalled = new NeverEndingStream();
+
+        GuardedHttpException error = await Assert.ThrowsAsync<GuardedHttpException>(() => GuardedHttp.ReadWithStallLimitAsync(stalled, new byte[10], TestContext.Current.CancellationToken, TimeSpan.FromMilliseconds(150)));
+
+        Assert.Equal("timeout", error.Code);
+    }
+
+    [Fact]
+    public async Task ACancelDuringAStalledReadIsACancelAndNotATimeout()
+    {
+        using NeverEndingStream stalled = new NeverEndingStream();
+        using CancellationTokenSource cancel = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => GuardedHttp.ReadWithStallLimitAsync(stalled, new byte[10], cancel.Token, TimeSpan.FromSeconds(30)));
+    }
+
+    private sealed class NeverEndingStream : Stream
+    {
+        public override bool CanRead => true;
+
+        public override bool CanSeek => false;
+
+        public override bool CanWrite => false;
+
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+
+        public override void Flush()
+        {
+        }
+
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return 0;
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
     private sealed class Progress(List<UpdateProgress> steps) : IProgress<UpdateProgress>
     {
         public void Report(UpdateProgress value) => steps.Add(value);

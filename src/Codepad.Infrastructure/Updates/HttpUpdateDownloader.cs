@@ -43,7 +43,7 @@ public sealed class HttpUpdateDownloader(HttpClient client, string stagingRoot) 
             {
                 byte[] buffer = new byte[BUFFER_BYTES];
                 int read;
-                while ((read = await body.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
+                while ((read = await GuardedHttp.ReadWithStallLimitAsync(body, buffer, cancellationToken).ConfigureAwait(false)) > 0)
                 {
                     received += read;
                     if (received > asset.Size)

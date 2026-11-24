@@ -125,8 +125,8 @@ public static class ArchiveExtractor
 
                     if (!OperatingSystem.IsWindows())
                     {
-                        // Keep the execute bit. Drop setuid, setgid and sticky bits: an update never needs them.
-                        File.SetUnixFileMode(target, (UnixFileMode)((int)entry.Mode & 0b111_111_111));
+                        // Keep the execute bit. Drop setuid, setgid and sticky bits, and the write bits of group and others: an update never needs them.
+                        File.SetUnixFileMode(target, (UnixFileMode)((int)entry.Mode & 0b111_101_101));
                     }
 
                     break;

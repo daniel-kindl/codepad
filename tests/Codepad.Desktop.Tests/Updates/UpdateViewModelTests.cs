@@ -302,3 +302,44 @@ public sealed class UpdateViewModelTests
         }
     }
 }
+
+public sealed class UpdateBootstrapTests : IDisposable
+{
+    private readonly string folder = Directory.CreateTempSubdirectory("codepad-health-").FullName;
+
+    public void Dispose()
+    {
+        Environment.SetEnvironmentVariable(UpdateBootstrap.HEALTH_VARIABLE, null);
+        Directory.Delete(folder, recursive: true);
+    }
+
+    [Fact]
+    public void ANormalStartNeverWritesTheHealthFileAlsoWhenSomethingElseSetsTheVariable()
+    {
+        string target = Path.Combine(folder, "important.txt");
+        File.WriteAllText(target, "keep");
+        Environment.SetEnvironmentVariable(UpdateBootstrap.HEALTH_VARIABLE, target);
+
+        UpdateBootstrap.WriteHealthFileIfRequested();
+
+        Assert.Equal("keep", File.ReadAllText(target));
+    }
+
+    [Fact]
+    public void ThePreviousResultIsReadOnceAndThenDeletedAndABadFileIsIgnored()
+    {
+        string file = Path.Combine(folder, "result.json");
+        File.WriteAllText(file, "{\"status\":\"rolled_back\",\"reason\":\"health_timeout\",\"fromVersion\":\"0.1.0\",\"toVersion\":\"0.2.0\"}");
+
+        (string, string, string)? result = UpdateBootstrap.TakePreviousResult(file);
+
+        Assert.Equal(("0.1.0", "0.2.0", "rolled_back"), result);
+        Assert.False(File.Exists(file));
+        Assert.Null(UpdateBootstrap.TakePreviousResult(file));
+
+        File.WriteAllText(file, "not json");
+        Assert.Null(UpdateBootstrap.TakePreviousResult(file));
+        File.WriteAllText(file, "{\"status\":\"x\",\"fromVersion\":\"bad\",\"toVersion\":\"0.2.0\"}");
+        Assert.Null(UpdateBootstrap.TakePreviousResult(file));
+    }
+}

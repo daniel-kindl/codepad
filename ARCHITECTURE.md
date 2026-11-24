@@ -12,7 +12,7 @@ For the product scope, see [PRODUCT.md](PRODUCT.md).
 `Codepad.Desktop`. Each module has its own assembly. [#2] added the domain model. See
 [Domain model](#domain-model). [#3] added storage. See
 [Storage and retention](#storage-and-retention). [#4] added Contracts and Worker. See
-[C# script semantics](#c-script-semantics) and [Worker protocol](#worker-protocol). [#5] added the C# editor, [#6] added completion and [#7] added the result panel. See [C# editor](#c-editor). [#8] added run history, [#9] added live JSON and [#10] added tabs, [#11] added the library and [#12] added the command palette and Run, and [#13] added the settings. [#19] added the CLI. See [Command line](#command-line). [#17] added the updater. See [Updates](#updates).
+[C# script semantics](#c-script-semantics) and [Worker protocol](#worker-protocol). [#5] added the C# editor, [#6] added completion and [#7] added the result panel. See [C# editor](#c-editor). [#8] added run history, [#9] added live JSON and [#10] added tabs, [#11] added the library and [#12] added the command palette and Run, and [#13] added the settings. [#19] added the CLI. See [Command line](#command-line). [#17] added the updater. See [Updates](#updates). [#15] added the packaging. See [Packaging and release](#packaging-and-release).
 
 The Desktop app opens one window with a menu, a workspace region and a status region. The workspace
 holds a tab strip. Each tab is a C# experiment (editor, diagnostics and result panel) or a live JSON
@@ -579,6 +579,22 @@ The release documentation states this limit. See [#15].
   a key installs nothing. The tag of the release must equal the signed version. An archive is checked by size and SHA-256 against the signed manifest when it arrives and again right before use.
 - **Failure.** A failure at any step leaves the installation unchanged and gives a readable message and a retry. Offline use, rate limits and a GitHub outage never block the app.
 - **Not in scope.** Delta updates, pre-releases, downgrades, an update server, administrator rights. The release process and the signing key belong to the owner ([#15]).
+
+## Packaging and release
+
+[#15] builds the release packages. The steps for the owner are in [docs/release.md](docs/release.md). The v0.1 evidence is in [docs/acceptance.md](docs/acceptance.md).
+
+- **Artifact.** One full-install archive for each system: `codepad-<version>-linux-x64.tar.gz` and `codepad-<version>-win-x64.zip`. Each is self-contained (its own .NET runtime), so the machine needs no
+  .NET. The archive root is the app folder: `Codepad.Desktop`, `codepad` (the CLI), the worker, the libraries, `docs/`, and `updater/Codepad.Updater` (one self-contained file, so
+  it can run from a copy outside the installation). Install scripts (`packaging/`) put it in a per-user folder, as the updater needs.
+- **Self-contained worker.** In a package the worker starts as its own program (`WorkerLaunchOptions.Locate` sees `includedFrameworks` in its runtime configuration). A developer build starts it with the `dotnet` host.
+- **The tool.** `tools/Codepad.ReleaseTool` (`codepad-release`) publishes and packs (`package`), writes `manifest.json` from the real archives (`manifest`), signs it with the key of the owner (`sign`), checks
+  signature, manifest rules and archive digests with the code of the app (`verify`), writes checksums and makes a key pair (`keygen`). It never uploads or tags.
+- **Reproducible.** The archive writer sorts the entries, uses one fixed time, no owner and fixed modes, and the build is deterministic. The same commit and SDK give the same bytes. `release-prepare` builds each package twice and compares them.
+- **Locked restore.** Every project lists `RuntimeIdentifiers` `linux-x64;win-x64`, so the lock files include both systems. The tool publishes with `--no-restore` after a locked `dotnet restore`.
+- **CI.** `validate` is the gate of every change. `release-prepare` runs by hand only. It builds, tests, packs twice, installs in a clean home, runs C# and JSON offline from the installed package, uploads the archives and an unsigned manifest, and checks the signing chain with a
+  throwaway key that is never saved. It does not sign a release and does not publish.
+- **Not in scope.** Publishing, tagging, the owner key, Authenticode signing, distro packages, other systems.
 
 ## Reliability and known limitations
 
