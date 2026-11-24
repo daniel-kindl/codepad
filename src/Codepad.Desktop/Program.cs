@@ -93,7 +93,8 @@ internal static partial class Program
         RunHistoryService? service = worker is null
             ? null
             : new RunHistoryService(new WorkerSupervisor(worker, loggerFactory.CreateLogger<WorkerSupervisor>()), new SqliteRunHistoryRepository(database), TimeProvider.System);
-        RunHistoryViewModel? history = service is null ? null : new RunHistoryViewModel(new SqliteRunHistoryRepository(database), service, results);
+        RunGate gate = new RunGate();
+        RunHistoryViewModel? history = service is null ? null : new RunHistoryViewModel(new SqliteRunHistoryRepository(database), service, results, gate);
 
         WorkspaceViewModel? workspace = null;
         RunController runs = new RunController(
@@ -103,7 +104,8 @@ internal static partial class Program
             action => Avalonia.Threading.Dispatcher.UIThread.Post(action),
             text => workspace?.ShowNotice(text),
             reason => LogRunFailed(logger, reason),
-            worker is null ? "The worker program is missing, so CodePad can't run code. Reinstall CodePad." : null);
+            worker is null ? "The worker program is missing, so CodePad can't run code. Reinstall CodePad." : null,
+            gate);
 
         workspace = new WorkspaceViewModel(
             new SqliteExperimentRepository(database),

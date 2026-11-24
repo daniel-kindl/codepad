@@ -30,6 +30,7 @@ public sealed class RunController : INotifyPropertyChanged
     private readonly Action<string> notify;
     private readonly Action<string> reportFailure;
     private readonly string? unavailableReason;
+    private readonly RunGate gate;
     private CancellationTokenSource? running;
     private ExperimentTabViewModel? activeTab;
     private ExperimentTabViewModel? runningTab;
@@ -42,7 +43,8 @@ public sealed class RunController : INotifyPropertyChanged
     /// <param name="notify">Shows a notice to the user.</param>
     /// <param name="reportFailure">Receives a storage reason or an exception type name. It never holds source or output.</param>
     /// <param name="unavailableReason">Why Run is unavailable when <paramref name="service"/> is null.</param>
-    public RunController(RunHistoryService? service, RunHistoryViewModel? history, ResultsViewModel results, Action<Action> post, Action<string> notify, Action<string> reportFailure, string? unavailableReason = null)
+    /// <param name="gate">Lets one run go at a time. Share it with the history model, so a Rerun and a Run never go together. Null gives this controller its own gate.</param>
+    public RunController(RunHistoryService? service, RunHistoryViewModel? history, ResultsViewModel results, Action<Action> post, Action<string> notify, Action<string> reportFailure, string? unavailableReason = null, RunGate? gate = null)
     {
         ArgumentNullException.ThrowIfNull(results);
         ArgumentNullException.ThrowIfNull(post);
@@ -55,6 +57,7 @@ public sealed class RunController : INotifyPropertyChanged
         this.notify = notify;
         this.reportFailure = reportFailure;
         this.unavailableReason = unavailableReason ?? "Running code is not available in this build.";
+        this.gate = gate ?? new RunGate();
     }
 
     /// <inheritdoc />
@@ -84,7 +87,7 @@ public sealed class RunController : INotifyPropertyChanged
             return new CommandAvailability(false, NO_CSHARP_REASON);
         }
 
-        return IsRunning ? new CommandAvailability(false, BUSY_REASON) : CommandAvailability.Available;
+        return gate.IsRunning ? new CommandAvailability(false, BUSY_REASON) : CommandAvailability.Available;
     }
 
     /// <summary>Tells whether Cancel can stop a run now.</summary>
@@ -98,48 +101,53 @@ public sealed class RunController : INotifyPropertyChanged
     public async Task RunAsync(ExperimentTabViewModel tab, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(tab);
-        if (!Availability(tab).Enabled || tab is not CSharpTabViewModel csharp)
+        if (!Availability(tab).Enabled || tab is not CSharpTabViewModel csharp || !gate.TryEnter())
         {
             return;
         }
 
-        using CancellationTokenSource source = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        running = source;
-        runningTab = csharp;
-        Raise(nameof(IsRunning));
-        Results.BeginRun();
-        try
+        bool failed = false;
+        using (CancellationTokenSource source = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
         {
-            CompletedRun run = await service!.RunAsync(csharp.CurrentExperiment, source.Token).ConfigureAwait(true);
-            csharp.LastRun = run.Record;
-            if (ReferenceEquals(activeTab, csharp))
+            running = source;
+            runningTab = csharp;
+            Raise(nameof(IsRunning));
+            Results.BeginRun();
+            try
             {
-                Results.Show(run.Record.Report, run.Record.CompletedAt);
+                CompletedRun run = await service!.RunAsync(csharp.CurrentExperiment, source.Token).ConfigureAwait(true);
+                csharp.LastRun = run.Record;
+                if (run.StorageFailure is string failure)
+                {
+                    reportFailure(failure);
+                    notify(NOT_SAVED_NOTICE);
+                }
             }
-
-            if (run.StorageFailure is string failure)
+            catch (Exception exception) when (exception is not OutOfMemoryException)
             {
-                reportFailure(failure);
-                notify(NOT_SAVED_NOTICE);
+                // The service turns a storage failure and a worker failure into a result. This is a bug. The text can hold the source, so only the type goes out.
+                reportFailure(exception.GetType().Name);
+                failed = true;
+            }
+            finally
+            {
+                running = null;
+                runningTab = null;
+                gate.Exit();
+                Raise(nameof(IsRunning));
             }
         }
-        catch (Exception exception) when (exception is not OutOfMemoryException)
+
+        // The history reload ends a saved run that the user had open, and that clears the panel. So the report shows after it.
+        await RefreshHistoryAsync(csharp).ConfigureAwait(true);
+        if (ReferenceEquals(activeTab, csharp))
         {
-            // The service turns a storage failure and a worker failure into a result. This is a bug. The text can hold the source, so only the type goes out.
-            reportFailure(exception.GetType().Name);
-            if (ReferenceEquals(activeTab, csharp))
+            ShowLast(csharp);
+            if (failed)
             {
                 Results.ShowStopped("The run stopped unexpectedly.", "CodePad could not run this code. Try again.");
             }
         }
-        finally
-        {
-            running = null;
-            runningTab = null;
-            Raise(nameof(IsRunning));
-        }
-
-        await RefreshHistoryAsync(csharp).ConfigureAwait(true);
     }
 
     /// <summary>Asks the run in progress to stop. The report then has the outcome Canceled.</summary>
@@ -156,17 +164,31 @@ public sealed class RunController : INotifyPropertyChanged
             return;
         }
 
-        if (csharp.LastRun is RunRecord last)
-        {
-            Results.Show(last.Report, last.CompletedAt);
-        }
+        ShowLast(csharp);
+        _ = ActivateHistoryAsync(csharp);
+    }
 
+    private async Task ActivateHistoryAsync(CSharpTabViewModel csharp)
+    {
+        await RefreshHistoryAsync(csharp).ConfigureAwait(true);
+
+        // Showing the history of this experiment ends an inspection of another one, and that clears the panel.
+        if (ReferenceEquals(activeTab, csharp))
+        {
+            ShowLast(csharp);
+        }
+    }
+
+    private void ShowLast(CSharpTabViewModel csharp)
+    {
         if (ReferenceEquals(runningTab, csharp))
         {
             Results.BeginRun();
         }
-
-        _ = RefreshHistoryAsync(csharp);
+        else if (csharp.LastRun is RunRecord last && !(history?.IsInspecting ?? false))
+        {
+            Results.Show(last.Report, last.CompletedAt);
+        }
     }
 
     private async Task RefreshHistoryAsync(CSharpTabViewModel tab)

@@ -30,7 +30,7 @@ public sealed class ResultsViewModel : INotifyPropertyChanged
     internal const string NO_RUN_TEXT = "No run yet";
 
     /// <summary>The text of the result tab before the first run.</summary>
-    internal const string EMPTY_RESULT_TEXT = "Run results appear here. Running code isn't available in this build yet.";
+    internal const string EMPTY_RESULT_TEXT = "Run results appear here. Press Ctrl+Enter to run this code.";
 
     /// <summary>The text of the result tab when a run succeeded and returned no value.</summary>
     internal const string NO_VALUE_TEXT = "This run returned no value.";

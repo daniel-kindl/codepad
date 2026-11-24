@@ -177,6 +177,75 @@ public sealed class RunControllerTests
         Assert.Equal("The run stopped unexpectedly.", fixture.Results.StatusText);
     }
 
+    [Fact]
+    public async Task RunningWhileASavedRunIsOpenStillShowsTheNewResult()
+    {
+        Fixture fixture = await Fixture.CreateAsync();
+        await fixture.Runs.RunAsync(fixture.Csharp, TestContext.Current.CancellationToken);
+        fixture.RunUi();
+        await fixture.HistoryModel.InspectAsync(fixture.HistoryModel.Items[0], TestContext.Current.CancellationToken);
+        Assert.True(fixture.HistoryModel.IsInspecting);
+
+        await fixture.Runs.RunAsync(fixture.Csharp, TestContext.Current.CancellationToken);
+        fixture.RunUi();
+
+        Assert.Equal("Succeeded", fixture.Results.StatusText);
+        Assert.Equal("2", fixture.Results.ValueText);
+        Assert.False(fixture.HistoryModel.IsInspecting);
+        Assert.Equal(2, fixture.HistoryModel.Items.Count);
+    }
+
+    [Fact]
+    public async Task SwitchingBackToATabKeepsItsLastResultAfterTheHistoryLoads()
+    {
+        Fixture fixture = await Fixture.CreateAsync();
+        await fixture.Runs.RunAsync(fixture.Csharp, TestContext.Current.CancellationToken);
+        fixture.RunUi();
+        CSharpTabViewModel other = Assert.IsType<CSharpTabViewModel>(await fixture.Workspace.Model.NewExperimentAsync(OperationKind.CSharp, TestContext.Current.CancellationToken));
+        fixture.Runs.OnActivated(other);
+        await fixture.HistoryModel.InspectAsync(fixture.HistoryModel.Items.Count > 0 ? fixture.HistoryModel.Items[0] : new RunHistoryItem(ExecutionId.New(), "x"), TestContext.Current.CancellationToken);
+
+        fixture.Runs.OnActivated(fixture.Csharp);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
+        fixture.RunUi();
+
+        Assert.Equal("Succeeded", fixture.Results.StatusText);
+    }
+
+    [Fact]
+    public async Task ARerunIsRefusedWhileARunGoesAndARunIsRefusedWhileARerunGoes()
+    {
+        Fixture fixture = await Fixture.CreateAsync();
+        await fixture.Runs.RunAsync(fixture.Csharp, TestContext.Current.CancellationToken);
+        fixture.RunUi();
+        await fixture.HistoryModel.InspectAsync(fixture.HistoryModel.Items[0], TestContext.Current.CancellationToken);
+        fixture.Runner.Requests.Clear();
+        TaskCompletionSource gate = new TaskCompletionSource();
+        fixture.Runner.Gate = gate.Task;
+
+        Task run = fixture.Runs.RunAsync(fixture.Csharp, TestContext.Current.CancellationToken);
+        await fixture.WaitAsync(() => fixture.Runner.Requests.Count == 1);
+        Assert.False(fixture.HistoryModel.CanRerun);
+        await fixture.HistoryModel.RerunAsync(TestContext.Current.CancellationToken);
+        Assert.Single(fixture.Runner.Requests);
+        gate.SetResult();
+        await run;
+
+        // Now the other way round.
+        fixture.RunUi();
+        await fixture.HistoryModel.InspectAsync(fixture.HistoryModel.Items[0], TestContext.Current.CancellationToken);
+        TaskCompletionSource second = new TaskCompletionSource();
+        fixture.Runner.Gate = second.Task;
+        fixture.Runner.Requests.Clear();
+        Task rerun = fixture.HistoryModel.RerunAsync(TestContext.Current.CancellationToken);
+        await fixture.WaitAsync(() => fixture.Runner.Requests.Count == 1);
+        Assert.False(fixture.Runs.Availability(fixture.Csharp).Enabled);
+        await fixture.Runs.RunAsync(fixture.Csharp, TestContext.Current.CancellationToken);
+        Assert.Single(fixture.Runner.Requests);
+        second.SetResult();
+        await rerun;
+    }
+
     private sealed class Fixture
     {
         private Fixture()
@@ -195,6 +264,10 @@ public sealed class RunControllerTests
 
         public CSharpTabViewModel Csharp { get; private set; } = null!;
 
+        public RunGate Gate { get; set; } = null!;
+
+        public RunHistoryViewModel HistoryModel { get; set; } = null!;
+
         public List<string> Notices { get; } = [];
 
         public List<string> Failures { get; } = [];
@@ -204,8 +277,11 @@ public sealed class RunControllerTests
             Fixture fixture = new Fixture();
             fixture.Workspace = new WorkspaceFixture();
             RunHistoryService service = new RunHistoryService(fixture.Runner, fixture.History, fixture.Workspace.Time);
-            RunHistoryViewModel history = new RunHistoryViewModel(fixture.History, service, fixture.Results);
-            fixture.Runs = new RunController(workerReason is null ? service : null, history, fixture.Results, fixture.Workspace.Post, fixture.Notices.Add, fixture.Failures.Add, workerReason);
+            RunGate gate = new RunGate();
+            RunHistoryViewModel history = new RunHistoryViewModel(fixture.History, service, fixture.Results, gate);
+            fixture.Gate = gate;
+            fixture.HistoryModel = history;
+            fixture.Runs = new RunController(workerReason is null ? service : null, history, fixture.Results, fixture.Workspace.Post, fixture.Notices.Add, fixture.Failures.Add, workerReason, gate);
             await fixture.Workspace.Model.RestoreAsync(TestContext.Current.CancellationToken);
             fixture.Csharp = Assert.IsType<CSharpTabViewModel>(fixture.Workspace.Model.Tabs[0]);
             fixture.Runs.OnActivated(fixture.Csharp);
