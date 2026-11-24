@@ -44,6 +44,7 @@ public sealed class LibraryViewModel : INotifyPropertyChanged, IDisposable
     private string statusText = SEARCHING_TEXT;
     private bool hasMore;
     private bool isEmpty;
+    private int nextOffset;
     private bool refreshing;
     private LibraryItem? selectedItem;
     private ExperimentId? selectedId;
@@ -204,7 +205,7 @@ public sealed class LibraryViewModel : INotifyPropertyChanged, IDisposable
     /// <summary>Adds the next page to the list.</summary>
     /// <param name="cancellationToken">Cancels the search.</param>
     /// <returns>A task that ends when the page shows.</returns>
-    public Task LoadMoreAsync(CancellationToken cancellationToken = default) => HasMore ? SearchAsync(Items.Count, append: true, cancellationToken) : Task.CompletedTask;
+    public Task LoadMoreAsync(CancellationToken cancellationToken = default) => HasMore ? SearchAsync(nextOffset, append: true, cancellationToken) : Task.CompletedTask;
 
     /// <summary>Empties the search text and shows the recent list again.</summary>
     public void ClearQuery()
@@ -283,6 +284,11 @@ public sealed class LibraryViewModel : INotifyPropertyChanged, IDisposable
         {
             // A newer search or Dispose cancelled this one.
         }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            // Nobody awaits this task. A storage failure already has its own path in SearchAsync. The type name is safe to log.
+            post(() => reportFailure(exception.GetType().Name));
+        }
     }
 
     private async Task SearchAsync(int offset, bool append, CancellationToken cancellationToken)
@@ -329,9 +335,13 @@ public sealed class LibraryViewModel : INotifyPropertyChanged, IDisposable
                 Items.Clear();
             }
 
+            // An autosave can move an edited row between two pages. A row that the list already has is not added again.
             foreach (ExperimentSummary summary in page.Items)
             {
-                Items.Add(LibraryItem.From(summary));
+                if (!Items.Any(item => item.Id == summary.Id))
+                {
+                    Items.Add(LibraryItem.From(summary));
+                }
             }
         }
         finally
@@ -342,6 +352,7 @@ public sealed class LibraryViewModel : INotifyPropertyChanged, IDisposable
         selectedItem = selectedId is ExperimentId keep ? Items.FirstOrDefault(item => item.Id == keep) : null;
         Raise(nameof(SelectedItem));
 
+        nextOffset = page.NextOffset;
         HasMore = page.HasMore;
         bool filtered = request.Text.Length > 0 || request.Kind is not null;
         IsEmpty = Items.Count == 0 && !filtered;

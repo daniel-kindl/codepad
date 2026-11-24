@@ -37,6 +37,6 @@ internal sealed class FakeLibrary(FakeExperimentRepository source) : ILibraryRep
             .OrderByDescending(item => item.ModifiedAt)
             .ThenByDescending(item => item.Id.Value)];
         List<ExperimentSummary> page = [.. hits.Skip(query.Offset).Take(query.Limit).Select(item => new ExperimentSummary(item.Id, item.Kind, item.Title, item.Source, item.ModifiedAt))];
-        return new LibraryPage(page, hits.Count > query.Offset + query.Limit);
+        return new LibraryPage(page, hits.Count > query.Offset + query.Limit, query.Offset + page.Count);
     }
 }

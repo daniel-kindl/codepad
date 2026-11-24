@@ -385,7 +385,8 @@ failure without a response is a Warning. The supervisor never logs source, outpu
 - **No index yet.** The search scans the table in the order of the last edit (`ix_experiments_modified_at`). A test with
   5,000 experiments of 1,000 characters finishes three searches in well under the 5 s limit of the test.
   Measure before you add SQLite FTS. The search runs on a thread-pool thread. The page is at most 200 rows.
-- **Order.** The newest edit comes first. A page shows 50 rows. "Load more" adds the next page.
+- **Order.** The newest edit comes first. A page shows 50 rows. "Load more" adds the next page. A page gives the offset of the next page (`NextOffset`). It counts the rows that the page
+  consumed, also the damaged rows that it skipped. A row that the list already has is not added again. The search text has at most 200 characters.
 - **Stale results.** A search starts 200 ms after the last key. A newer search cancels the older one, and a result
   of an old search is dropped on the UI thread. A failed search keeps the earlier list and shows a sentence.
 - **Selection.** After a refresh, the selected row stays selected when its experiment is still in the list.

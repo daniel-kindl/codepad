@@ -254,4 +254,54 @@ public sealed class SqliteLibraryRepositoryTests : IDisposable
     {
         Assert.ThrowsAny<ArgumentOutOfRangeException>(() => new LibraryQuery(limit: limit, offset: offset));
     }
+
+    [Fact]
+    public async Task WalkingThePagesWithADamagedRowRepeatsAndSkipsNothing()
+    {
+        for (int index = 0; index < 10; index++)
+        {
+            await AddAsync($"t{index}", "x", minutes: index);
+        }
+
+        using (Microsoft.Data.Sqlite.SqliteConnection connection = temp.RawConnection())
+        {
+            using Microsoft.Data.Sqlite.SqliteCommand command = connection.CreateCommand();
+            command.CommandText = "INSERT INTO experiments (id, kind, title, source, input, created_at, modified_at, revision) VALUES ('not-a-guid', 'CSharp', 'bad', 'x', '', 'x', '2026-01-01T00:07:30.0000000+00:00', 1);";
+            command.ExecuteNonQuery();
+        }
+
+        List<string> seen = [];
+        int offset = 0;
+        for (int guard = 0; guard < 10; guard++)
+        {
+            LibraryPage page = await library.SearchAsync(new LibraryQuery(limit: 5, offset: offset), TestContext.Current.CancellationToken);
+            seen.AddRange(page.Items.Select(item => item.Title));
+            offset = page.NextOffset;
+            if (!page.HasMore)
+            {
+                break;
+            }
+        }
+
+        Assert.Equal(["t9", "t8", "t7", "t6", "t5", "t4", "t3", "t2", "t1", "t0"], seen);
+    }
+
+    [Fact]
+    public async Task AVeryLongQueryIsCutAndStillSearches()
+    {
+        await AddAsync("one", "abc");
+
+        LibraryPage page = await library.SearchAsync(new LibraryQuery(new string('a', 100_000)), TestContext.Current.CancellationToken);
+
+        Assert.Empty(page.Items);
+        Assert.Equal(LibraryQuery.MaxTextLength, new LibraryQuery(new string('a', 100_000)).Text.Length);
+    }
+
+    [Fact]
+    public async Task ANulCharacterInTheQueryDoesNotBreakTheSearch()
+    {
+        await AddAsync("one", "abc");
+
+        Assert.Empty(await TitlesAsync("a\0b"));
+    }
 }

@@ -290,4 +290,25 @@ public sealed class LibraryViewModelTests
 
         Assert.Null(fixture.Model.SelectedItem);
     }
+
+    [Fact]
+    public async Task LoadMoreNeverRepeatsARowThatMovedBetweenPages()
+    {
+        Fixture fixture = new Fixture(pageSize: 2);
+        for (int index = 0; index < 4; index++)
+        {
+            Experiment seeded = Experiment.Create(ExperimentId.New(), OperationKind.CSharp, $"E{index}", "x", fixture.Workspace.Time.GetUtcNow().AddMinutes(index));
+            fixture.Workspace.Experiments.Seed(seeded);
+        }
+
+        await fixture.RefreshAsync();
+        Assert.Equal(["E3", "E2"], fixture.Model.Items.Select(item => item.Title));
+
+        // An edit moves E0 to the top before the user asks for more.
+        Experiment e0 = (await fixture.Workspace.Experiments.ListAsync(TestContext.Current.CancellationToken)).Single(item => item.Title == "E0");
+        fixture.Workspace.Experiments.Seed(e0.WithSource("edited", fixture.Workspace.Time.GetUtcNow().AddHours(1)));
+        await fixture.LoadMoreAsync();
+
+        Assert.Equal(fixture.Model.Items.Count, fixture.Model.Items.Select(item => item.Id).Distinct().Count());
+    }
 }

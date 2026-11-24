@@ -97,7 +97,7 @@ public sealed class SqliteLibraryRepository(SqliteDatabase database) : ILibraryR
             }
         }
 
-        return new LibraryPage(items, hasMore);
+        return new LibraryPage(items, hasMore, query.Offset + Math.Min(read, query.Limit));
     }
 
     private static ExperimentSummary? TryRead(SqliteDataReader reader)

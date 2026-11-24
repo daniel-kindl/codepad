@@ -14,6 +14,9 @@ public sealed record LibraryQuery
     /// <summary>The longest page.</summary>
     public static readonly int MaxLimit = 200;
 
+    /// <summary>The longest search text in characters. A longer text is cut.</summary>
+    public static readonly int MaxTextLength = 200;
+
     /// <summary>The page size when the caller gives none.</summary>
     public static readonly int DefaultLimit = 50;
 
@@ -28,7 +31,8 @@ public sealed record LibraryQuery
         ArgumentOutOfRangeException.ThrowIfLessThan(size, 1);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(size, MaxLimit);
         ArgumentOutOfRangeException.ThrowIfNegative(offset);
-        Text = (text ?? string.Empty).Trim();
+        string trimmed = (text ?? string.Empty).Trim();
+        Text = trimmed.Length > MaxTextLength ? trimmed[..(char.IsHighSurrogate(trimmed[MaxTextLength - 1]) ? MaxTextLength - 1 : MaxTextLength)] : trimmed;
         Kind = kind;
         Limit = size;
         Offset = offset;
