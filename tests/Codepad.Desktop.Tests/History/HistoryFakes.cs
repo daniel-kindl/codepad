@@ -64,6 +64,20 @@ internal sealed class MemoryHistory : IRunHistoryRepository
         return record;
     }
 
+    public string? ClearFailure { get; set; }
+
+    public Task<int> ClearAsync(CancellationToken cancellationToken = default)
+    {
+        if (ClearFailure is not null)
+        {
+            throw new ExperimentStorageException(ClearFailure);
+        }
+
+        int count = records.Count;
+        records.Clear();
+        return Task.FromResult(count);
+    }
+
     public void Remove(ExecutionId id) => records.RemoveAll(record => record.Request.Id == id);
 
     public Task AddAsync(RunRecord record, CancellationToken cancellationToken = default)

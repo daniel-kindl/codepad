@@ -20,12 +20,14 @@
 
     <Menu DockPanel.Dock="Top" AutomationProperties.Name="Main menu">
       <MenuItem Header="_File" AutomationProperties.Name="File">
-        <MenuItem Header="New _C# experiment" IsEnabled="{Binding HasWorkspace}" Click="OnNewCSharpClick" AutomationProperties.Name="New C# experiment" />
+        <MenuItem Header="New _C# experiment" InputGesture="Ctrl+N" IsEnabled="{Binding HasWorkspace}" Click="OnNewCSharpClick" AutomationProperties.Name="New C# experiment" />
         <MenuItem Header="New _JSON experiment" IsEnabled="{Binding HasWorkspace}" Click="OnNewJsonClick" AutomationProperties.Name="New JSON experiment" />
         <MenuItem Header="Close _tab" InputGesture="Ctrl+W" IsEnabled="{Binding HasWorkspace}" Click="OnCloseTabClick" AutomationProperties.Name="Close tab" />
         <Separator />
         <MenuItem Header="_Next tab" InputGesture="Ctrl+Tab" IsEnabled="{Binding HasWorkspace}" Click="OnNextTabClick" AutomationProperties.Name="Next tab" />
         <MenuItem Header="_Previous tab" InputGesture="Ctrl+Shift+Tab" IsEnabled="{Binding HasWorkspace}" Click="OnPreviousTabClick" AutomationProperties.Name="Previous tab" />
+        <Separator />
+        <MenuItem Header="_Settings…" InputGesture="Ctrl+," IsEnabled="{Binding HasSettings}" Click="OnSettingsClick" AutomationProperties.Name="Settings" />
         <Separator />
         <MenuItem Header="E_xit" AutomationProperties.Name="Exit" Click="OnExitClick" />
       </MenuItem>

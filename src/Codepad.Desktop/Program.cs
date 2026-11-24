@@ -4,6 +4,7 @@ using Avalonia;
 using Codepad.Application.Editing;
 using Codepad.Application.History;
 using Codepad.Application.Json;
+using Codepad.Application.Settings;
 using Codepad.Application.Workspace;
 using Codepad.Application.Startup;
 using Codepad.Desktop.Editor;
@@ -11,6 +12,7 @@ using Codepad.Desktop.History;
 using Codepad.Desktop.Json;
 using Codepad.Desktop.Library;
 using Codepad.Desktop.Results;
+using Codepad.Desktop.Settings;
 using Codepad.Desktop.Workspace;
 using Codepad.Desktop.Shell;
 using Codepad.Infrastructure.Execution;
@@ -42,6 +44,13 @@ internal static partial class Program
         SqliteDatabase database = new SqliteDatabase(Path.Combine(folders.DataFolder, DATABASE_FILE_NAME));
         StartupReport report = new StartupService(JsonSettingsStore.InFolder(folders.ConfigFolder), new FileSystemDataFolder(folders.DataFolder), database).Prepare();
 
+        // The user settings come from the same file as the log level. A bad value falls back to its default, and the status line says so.
+        UserSettingsReadResult preferences = JsonUserSettingsStore.InFolder(folders.ConfigFolder).Read();
+        if (preferences.Warnings.Count > 0)
+        {
+            report = report with { Notices = [.. report.Notices, new StartupNotice(StartupNoticeKind.PreferencesRecovered, string.Join(',', preferences.Warnings))] };
+        }
+
         using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder
             .SetMinimumLevel(report.Settings.MinimumLogLevel)
             .AddJsonConsole());
@@ -52,16 +61,25 @@ internal static partial class Program
             LogStartupDegraded(logger, notice.Kind, notice.Reason);
         }
 
+        bool storeReady = !report.Notices.Any(notice => notice.Kind is StartupNoticeKind.DataFolderUnavailable or StartupNoticeKind.DataStoreUnavailable);
+        SettingsViewModel? settingsHolder = null;
+        SqliteRunHistoryRepository? historyRepository = storeReady ? new SqliteRunHistoryRepository(database, () => settingsHolder!.Current.HistoryRetention) : null;
+        SettingsViewModel settings = new SettingsViewModel(
+            JsonUserSettingsStore.InFolder(folders.ConfigFolder),
+            preferences.Settings,
+            historyRepository,
+            reason => LogSettingsFailed(logger, reason));
+        settingsHolder = settings;
         WorkspaceViewModel? workspace = report.Notices.Any(notice => notice.Kind is StartupNoticeKind.DataFolderUnavailable or StartupNoticeKind.DataStoreUnavailable)
             ? null
-            : OpenWorkspace(database, folders, loggerFactory, logger);
+            : OpenWorkspace(database, folders, loggerFactory, logger, settings, historyRepository!);
         LibraryViewModel? library = workspace is null
             ? null
             : new LibraryViewModel(new SqliteLibraryRepository(database), workspace, TimeProvider.System, TimeSpan.FromMilliseconds(250), reportFailure: reason => LogLibraryFailed(logger, reason));
 
         string version = typeof(Program).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "unknown";
         ShellOptions options = new ShellOptions(
-            new MainWindowViewModel(report.Notices, new CSharpEditorViewModel(new CSharpHighlighter(), new CSharpAnalyzer(), TimeProvider.System, DiagnosticsCoordinator.DefaultDebounce, reportFailure: reason => LogAnalysisFailed(logger, reason), completion: new CSharpCompletionProvider(), reportCompletionFailure: reason => LogCompletionFailed(logger, reason)), workspace: workspace, library: library) { ReportCommandFailure = reason => LogCommandFailed(logger, reason) },
+            new MainWindowViewModel(report.Notices, new CSharpEditorViewModel(new CSharpHighlighter(), new CSharpAnalyzer(), TimeProvider.System, DiagnosticsCoordinator.DefaultDebounce, reportFailure: reason => LogAnalysisFailed(logger, reason), completion: new CSharpCompletionProvider(), reportCompletionFailure: reason => LogCompletionFailed(logger, reason), preferences: settings.Preferences), workspace: workspace, library: library, settings: settings) { ReportCommandFailure = reason => LogCommandFailed(logger, reason) },
             () =>
             {
                 long startupMs = (long)Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds;
@@ -82,7 +100,7 @@ internal static partial class Program
         }
     }
 
-    private static WorkspaceViewModel OpenWorkspace(SqliteDatabase database, AppFolderPaths folders, ILoggerFactory loggerFactory, ILogger logger)
+    private static WorkspaceViewModel OpenWorkspace(SqliteDatabase database, AppFolderPaths folders, ILoggerFactory loggerFactory, ILogger logger, SettingsViewModel settings, SqliteRunHistoryRepository historyRepository)
     {
         // The worker gets one stable working folder in the data folder. A run can write files there. It cannot reach the database.
         string runFolder = Path.Combine(folders.DataFolder, RUN_FOLDER_NAME);
@@ -92,9 +110,9 @@ internal static partial class Program
         ResultsViewModel results = new ResultsViewModel();
         RunHistoryService? service = worker is null
             ? null
-            : new RunHistoryService(new WorkerSupervisor(worker, loggerFactory.CreateLogger<WorkerSupervisor>()), new SqliteRunHistoryRepository(database), TimeProvider.System);
+            : new RunHistoryService(new WorkerSupervisor(worker, loggerFactory.CreateLogger<WorkerSupervisor>()), historyRepository, TimeProvider.System, () => settings.Current.CSharpPolicy);
         RunGate gate = new RunGate();
-        RunHistoryViewModel? history = service is null ? null : new RunHistoryViewModel(new SqliteRunHistoryRepository(database), service, results, gate);
+        RunHistoryViewModel? history = service is null ? null : new RunHistoryViewModel(historyRepository, service, results, gate);
 
         WorkspaceViewModel? workspace = null;
         RunController runs = new RunController(
@@ -107,12 +125,13 @@ internal static partial class Program
             worker is null ? "The worker program is missing, so CodePad can't run code. Reinstall CodePad." : null,
             gate);
 
+        settings.HistoryCleared += runs.OnHistoryCleared;
         workspace = new WorkspaceViewModel(
             new SqliteExperimentRepository(database),
             new SessionStore(new SqlitePreferenceRepository(database)),
             TimeProvider.System,
-            () => new CSharpEditorViewModel(new CSharpHighlighter(), new CSharpAnalyzer(), TimeProvider.System, DiagnosticsCoordinator.DefaultDebounce, reportFailure: reason => LogAnalysisFailed(logger, reason), completion: new CSharpCompletionProvider(), reportCompletionFailure: reason => LogCompletionFailed(logger, reason)),
-            () => new JsonToolViewModel(new JsonEvaluator(), TimeProvider.System, LiveJsonCoordinator.DefaultDebounce, reportFailure: reason => LogJsonFailed(logger, reason)),
+            () => new CSharpEditorViewModel(new CSharpHighlighter(), new CSharpAnalyzer(), TimeProvider.System, DiagnosticsCoordinator.DefaultDebounce, reportFailure: reason => LogAnalysisFailed(logger, reason), completion: new CSharpCompletionProvider(), reportCompletionFailure: reason => LogCompletionFailed(logger, reason), preferences: settings.Preferences),
+            () => new JsonToolViewModel(new JsonEvaluator(), TimeProvider.System, LiveJsonCoordinator.DefaultDebounce, reportFailure: reason => LogJsonFailed(logger, reason), preferences: settings.Preferences),
             reportFailure: reason => LogWorkspaceStorageFailed(logger, reason),
             runs: runs);
         return workspace;
@@ -166,4 +185,8 @@ internal static partial class Program
     [LoggerMessage(EventId = 10, EventName = "command.failed", Level = LogLevel.Warning,
         Message = "A command handler failed: {ExceptionType}")]
     private static partial void LogCommandFailed(ILogger logger, string exceptionType);
+
+    [LoggerMessage(EventId = 11, EventName = "settings.failed", Level = LogLevel.Warning,
+        Message = "The settings could not be saved or the history could not be cleared: {Reason}")]
+    private static partial void LogSettingsFailed(ILogger logger, string reason);
 }

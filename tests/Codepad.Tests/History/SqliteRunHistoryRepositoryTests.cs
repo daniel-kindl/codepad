@@ -229,4 +229,41 @@ public sealed class SqliteRunHistoryRepositoryTests : IDisposable
         Assert.NotNull(await history.GetAsync(good.Request.Id, TestContext.Current.CancellationToken));
         Assert.Equal(2, (await history.ListAsync(experiment.Id, TestContext.Current.CancellationToken)).Count);
     }
+
+    [Fact]
+    public async Task ARetentionThatChangesAppliesAtTheNextInsert()
+    {
+        SqliteDatabase database = temp.Open();
+        Experiment experiment = RunSamples.Experiment();
+        await new SqliteExperimentRepository(database).SaveAsync(experiment, TestContext.Current.CancellationToken);
+        int keep = 5;
+        SqliteRunHistoryRepository history = new SqliteRunHistoryRepository(database, () => keep);
+        for (int index = 0; index < 5; index++)
+        {
+            await history.AddAsync(RunSamples.Record(experiment, minutes: index), TestContext.Current.CancellationToken);
+        }
+
+        Assert.Equal(5, (await history.ListAsync(experiment.Id, TestContext.Current.CancellationToken)).Count);
+
+        keep = 2;
+        await history.AddAsync(RunSamples.Record(experiment, minutes: 10), TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, (await history.ListAsync(experiment.Id, TestContext.Current.CancellationToken)).Count);
+    }
+
+    [Fact]
+    public async Task ClearDeletesRunsOnlyAndNeverAnExperiment()
+    {
+        (SqliteRunHistoryRepository history, Experiment experiment) = await NewAsync();
+        await history.AddAsync(RunSamples.Record(experiment, minutes: 1), TestContext.Current.CancellationToken);
+        await history.AddAsync(RunSamples.Record(experiment, minutes: 2), TestContext.Current.CancellationToken);
+
+        int deleted = await history.ClearAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, deleted);
+        Assert.Empty(await history.ListAsync(experiment.Id, TestContext.Current.CancellationToken));
+        Experiment? stored = await new SqliteExperimentRepository(temp.Open()).GetAsync(experiment.Id, TestContext.Current.CancellationToken);
+        Assert.Equal(experiment, stored);
+        Assert.Equal(0, await history.ClearAsync(TestContext.Current.CancellationToken));
+    }
 }

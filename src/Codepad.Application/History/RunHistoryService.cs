@@ -14,7 +14,8 @@ namespace Codepad.Application.History;
 /// <param name="runner">Runs one snapshot.</param>
 /// <param name="history">Stores the completed run.</param>
 /// <param name="clock">The time source.</param>
-public sealed class RunHistoryService(ICSharpRunner runner, IRunHistoryRepository history, TimeProvider clock)
+/// <param name="policy">Gives the policy of a new run. The service calls it for each new run, so a change of the timeout applies to new runs only. Null uses <see cref="OperationPolicy.CSharpDefault"/>.</param>
+public sealed class RunHistoryService(ICSharpRunner runner, IRunHistoryRepository history, TimeProvider clock, Func<OperationPolicy>? policy = null)
 {
     /// <summary>Takes a snapshot of the experiment, runs it and stores the record.</summary>
     /// <param name="experiment">The experiment at the revision to run. It must be a C# experiment.</param>
@@ -25,7 +26,7 @@ public sealed class RunHistoryService(ICSharpRunner runner, IRunHistoryRepositor
     public Task<CompletedRun> RunAsync(Experiment experiment, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(experiment);
-        ExecutionRequest request = ExecutionRequest.Snapshot(ExecutionId.New(), experiment, OperationPolicy.CSharpDefault, clock.GetUtcNow());
+        ExecutionRequest request = ExecutionRequest.Snapshot(ExecutionId.New(), experiment, policy?.Invoke() ?? OperationPolicy.CSharpDefault, clock.GetUtcNow());
         return RunSnapshotAsync(request, cancellationToken);
     }
 

@@ -31,4 +31,11 @@ public interface IRunHistoryRepository
     /// <returns>The record, or null if history has none with this ID (for example, retention removed it).</returns>
     /// <exception cref="Codepad.Application.Experiments.ExperimentStorageException">Storage failed, or the row is damaged (<c>corrupt</c>).</exception>
     Task<RunRecord?> GetAsync(ExecutionId id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes all saved runs of all experiments. It never deletes an experiment, its source or its settings.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the delete.</param>
+    /// <returns>The number of runs that it deleted.</returns>
+    Task<int> ClearAsync(CancellationToken cancellationToken = default);
 }

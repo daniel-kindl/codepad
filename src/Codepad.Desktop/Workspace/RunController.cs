@@ -153,6 +153,15 @@ public sealed class RunController : INotifyPropertyChanged
     /// <summary>Asks the run in progress to stop. The report then has the outcome Canceled.</summary>
     public void Cancel() => running?.Cancel();
 
+    /// <summary>Reloads the history of the active tab after the saved runs were deleted. The result on screen stays.</summary>
+    public void OnHistoryCleared()
+    {
+        if (activeTab is CSharpTabViewModel csharp)
+        {
+            _ = ActivateHistoryAsync(csharp);
+        }
+    }
+
     /// <summary>Fills the shared panels for the tab that became active.</summary>
     /// <param name="tab">The tab, or null when no tab is open.</param>
     public void OnActivated(ExperimentTabViewModel? tab)

@@ -11,6 +11,9 @@ public enum StartupNoticeKind
 
     /// <summary>CodePad cannot open its experiment database. The schema can be newer than the app, or the file can be damaged.</summary>
     DataStoreUnavailable,
+
+    /// <summary>The preferences in the settings file have a bad value or come from a newer version. CodePad uses the defaults for them.</summary>
+    PreferencesRecovered,
 }
 
 /// <summary>One startup problem, with a log-safe reason code.</summary>

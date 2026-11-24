@@ -1,0 +1,18 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Codepad.Desktop.Settings.ConfirmWindow"
+        Width="440" SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+
+  <StackPanel Margin="16" Spacing="12">
+    <TextBlock x:Name="MessageText" TextWrapping="Wrap" AutomationProperties.Name="Confirmation message" />
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <!-- The safe choice has the focus and answers Escape. The destructive choice needs a deliberate click or key. -->
+      <Button x:Name="ConfirmButton" Click="OnConfirmClick" />
+      <Button x:Name="CancelButton" Content="Cancel" IsDefault="True" IsCancel="True" AutomationProperties.Name="Cancel" Click="OnCancelClick" />
+    </StackPanel>
+  </StackPanel>
+
+</Window>

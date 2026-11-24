@@ -99,6 +99,24 @@ public sealed class RunHistoryServiceTests
         Assert.Empty(history.Added);
     }
 
+    [Fact]
+    public async Task ATimeoutChangeAppliesToNewRunsOnlyAndARerunKeepsItsSnapshotPolicy()
+    {
+        Codepad.Application.Settings.UserSettings settings = Codepad.Application.Settings.UserSettings.Default;
+        RunHistoryService service = new RunHistoryService(runner, history, clock, () => settings.CSharpPolicy);
+        Experiment experiment = RunSamples.Experiment("1");
+        CompletedRun first = await service.RunAsync(experiment, TestContext.Current.CancellationToken);
+
+        settings = settings with { RunTimeoutSeconds = 45 };
+        CompletedRun second = await service.RunAsync(experiment, TestContext.Current.CancellationToken);
+        CompletedRun rerun = await service.RerunAsync(first.Record, TestContext.Current.CancellationToken);
+
+        Assert.Equal(TimeSpan.FromSeconds(10), first.Record.Request.Policy.TimeLimit);
+        Assert.Equal(TimeSpan.FromSeconds(45), second.Record.Request.Policy.TimeLimit);
+        Assert.Equal(TimeSpan.FromSeconds(10), rerun.Record.Request.Policy.TimeLimit);
+        Assert.Equal(Codepad.Domain.Operations.OperationTrigger.ExplicitOnly, second.Record.Request.Policy.Trigger);
+    }
+
     private sealed class FakeRunner : ICSharpRunner
     {
         public List<ExecutionRequest> Requests { get; } = [];
@@ -134,5 +152,7 @@ public sealed class RunHistoryServiceTests
 
         public Task<RunRecord?> GetAsync(ExecutionId id, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
+
+        public Task<int> ClearAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 }

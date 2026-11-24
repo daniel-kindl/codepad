@@ -71,6 +71,7 @@ public sealed partial class CSharpEditorView : UserControl
         {
             model.DocumentLoaded -= OnDocumentLoaded;
             model.Diagnostics.CollectionChanged -= OnDiagnosticsChanged;
+            model.Preferences.Changed -= ApplyPreferences;
         }
 
         model = DataContext as CSharpEditorViewModel;
@@ -89,7 +90,23 @@ public sealed partial class CSharpEditorView : UserControl
         Editor.TextArea.TextView.LineTransformers.Add(colorizer);
         model.DocumentLoaded += OnDocumentLoaded;
         model.Diagnostics.CollectionChanged += OnDiagnosticsChanged;
+        model.Preferences.Changed += ApplyPreferences;
+        ApplyPreferences();
         OnDocumentLoaded(model.Text);
+    }
+
+    // The settings change the font size and the indentation of all open editors at once.
+    private void ApplyPreferences()
+    {
+        if (model is null)
+        {
+            return;
+        }
+
+        Editor.FontSize = model.Preferences.FontSize;
+        Editor.Options.IndentationSize = model.Preferences.IndentationWidth;
+        Editor.Options.ConvertTabsToSpaces = true;
+        Editor.TextArea.TextView.Redraw();
     }
 
     private void OnDocumentLoaded(string text)

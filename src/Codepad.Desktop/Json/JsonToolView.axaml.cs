@@ -25,13 +25,25 @@ public sealed partial class JsonToolView : UserControl
         if (model is not null)
         {
             model.DocumentLoaded -= OnDocumentLoaded;
+            model.Preferences.Changed -= ApplyPreferences;
         }
 
         model = DataContext as JsonToolViewModel;
         if (model is not null)
         {
             model.DocumentLoaded += OnDocumentLoaded;
+            model.Preferences.Changed += ApplyPreferences;
+            ApplyPreferences();
             ShowText(model.Text);
+        }
+    }
+
+    private void ApplyPreferences()
+    {
+        if (model is not null)
+        {
+            InputBox.FontSize = model.Preferences.FontSize;
+            FormattedBox.FontSize = model.Preferences.FontSize;
         }
     }
 

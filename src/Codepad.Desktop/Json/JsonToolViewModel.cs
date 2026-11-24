@@ -5,6 +5,7 @@ using Avalonia.Threading;
 using Codepad.Application.Json;
 using Codepad.Domain.Results;
 using Codepad.Desktop.Results;
+using Codepad.Desktop.Settings;
 
 namespace Codepad.Desktop.Json;
 
@@ -51,11 +52,13 @@ public sealed class JsonToolViewModel : INotifyPropertyChanged, IDisposable
     /// <param name="debounce">The idle time before an evaluation starts.</param>
     /// <param name="post">Runs an action on the UI thread. Null uses the Avalonia UI thread.</param>
     /// <param name="reportFailure">Receives the exception type name when the evaluation fails. Null ignores it.</param>
-    public JsonToolViewModel(IJsonEvaluator evaluator, TimeProvider timeProvider, TimeSpan debounce, Action<Action>? post = null, Action<string>? reportFailure = null)
+    /// <param name="preferences">The font size. The view applies it at once. Null uses the defaults.</param>
+    public JsonToolViewModel(IJsonEvaluator evaluator, TimeProvider timeProvider, TimeSpan debounce, Action<Action>? post = null, Action<string>? reportFailure = null, EditorPreferences? preferences = null)
     {
         ArgumentNullException.ThrowIfNull(evaluator);
         ArgumentNullException.ThrowIfNull(timeProvider);
         this.evaluator = evaluator;
+        Preferences = preferences ?? new EditorPreferences();
         this.timeProvider = timeProvider;
         this.debounce = debounce;
         this.post = post ?? (action => Dispatcher.UIThread.Post(action));
@@ -71,6 +74,9 @@ public sealed class JsonToolViewModel : INotifyPropertyChanged, IDisposable
 
     /// <summary>Raised when <see cref="Load"/> replaces the document. The view shows the new text.</summary>
     public event Action<string>? DocumentLoaded;
+
+    /// <summary>Gets the font size that the view applies.</summary>
+    public EditorPreferences Preferences { get; }
 
     /// <summary>Gets the result panel. It shows the tree of the last valid document and the problems.</summary>
     public ResultsViewModel Results { get; } = new ResultsViewModel();

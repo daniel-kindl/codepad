@@ -1,0 +1,126 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:settings="using:Codepad.Desktop.Settings"
+        x:Class="Codepad.Desktop.Settings.SettingsWindow"
+        x:DataType="settings:SettingsViewModel"
+        Title="Settings"
+        Width="560" Height="640" MinWidth="420" MinHeight="360"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        AutomationProperties.Name="Settings">
+
+  <DockPanel Margin="16">
+
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
+      <TextBlock Classes="notice" VerticalAlignment="Center" Text="{Binding SaveStatus}"
+                 AutomationProperties.Name="Save status" AutomationProperties.LiveSetting="Polite" />
+      <Button Content="Reset to defaults" Click="OnResetClick" AutomationProperties.Name="Reset all settings to the defaults" />
+      <Button x:Name="CloseButton" Content="Close" IsCancel="True" IsDefault="True" Click="OnCloseClick" AutomationProperties.Name="Close settings" />
+    </StackPanel>
+
+    <ScrollViewer>
+      <StackPanel Spacing="18" Margin="0,0,12,0">
+
+        <StackPanel Spacing="8">
+          <TextBlock Classes="settings-heading" Text="Appearance" />
+          <Grid ColumnDefinitions="250,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="8">
+            <TextBlock Grid.Row="0" Text="Theme" VerticalAlignment="Center" />
+            <ComboBox x:Name="ThemeBox" Grid.Row="0" Grid.Column="1" SelectedIndex="{Binding ThemeIndex, Mode=TwoWay}"
+                      AutomationProperties.Name="Theme">
+              <ComboBoxItem Content="Follow the system" />
+              <ComboBoxItem Content="Light" />
+              <ComboBoxItem Content="Dark" />
+            </ComboBox>
+
+            <TextBlock Grid.Row="1" Text="Editor font size (points)" VerticalAlignment="Center" />
+            <StackPanel Grid.Row="1" Grid.Column="1" Spacing="2">
+              <NumericUpDown x:Name="FontSizeBox" Minimum="8" Maximum="48" Increment="1" FormatString="0"
+                             Value="{Binding FontSizeInput, Mode=TwoWay}" HorizontalAlignment="Left" Width="140"
+                             AutomationProperties.Name="Editor font size" />
+              <TextBlock Classes="settings-error" Text="{Binding FontSizeError}"
+                         IsVisible="{Binding FontSizeError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                         AutomationProperties.Name="Font size problem" AutomationProperties.LiveSetting="Assertive" />
+            </StackPanel>
+
+            <TextBlock Grid.Row="2" Text="Indentation width (spaces)" VerticalAlignment="Center" />
+            <StackPanel Grid.Row="2" Grid.Column="1" Spacing="2">
+              <NumericUpDown x:Name="IndentBox" Minimum="1" Maximum="8" Increment="1" FormatString="0"
+                             Value="{Binding IndentationWidthInput, Mode=TwoWay}" HorizontalAlignment="Left" Width="140"
+                             AutomationProperties.Name="Indentation width" />
+              <TextBlock Classes="settings-error" Text="{Binding IndentationWidthError}"
+                         IsVisible="{Binding IndentationWidthError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                         AutomationProperties.Name="Indentation problem" AutomationProperties.LiveSetting="Assertive" />
+            </StackPanel>
+          </Grid>
+        </StackPanel>
+
+        <StackPanel Spacing="8">
+          <TextBlock Classes="settings-heading" Text="Running code" />
+          <Grid ColumnDefinitions="250,*" RowDefinitions="Auto,Auto" RowSpacing="8">
+            <TextBlock Grid.Row="0" Text="Run timeout (seconds)" VerticalAlignment="Center" />
+            <StackPanel Grid.Row="0" Grid.Column="1" Spacing="2">
+              <NumericUpDown x:Name="TimeoutBox" Minimum="1" Maximum="600" Increment="1" FormatString="0"
+                             Value="{Binding RunTimeoutInput, Mode=TwoWay}" HorizontalAlignment="Left" Width="140"
+                             AutomationProperties.Name="Run timeout" />
+              <TextBlock Classes="notice" Margin="0" Text="A new timeout applies to the next run. A run that is going keeps its limit." TextWrapping="Wrap" />
+              <TextBlock Classes="settings-error" Text="{Binding RunTimeoutError}"
+                         IsVisible="{Binding RunTimeoutError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                         AutomationProperties.Name="Timeout problem" AutomationProperties.LiveSetting="Assertive" />
+            </StackPanel>
+          </Grid>
+        </StackPanel>
+
+        <StackPanel Spacing="8">
+          <TextBlock Classes="settings-heading" Text="History" />
+          <Grid ColumnDefinitions="250,*" RowDefinitions="Auto" RowSpacing="8">
+            <TextBlock Grid.Row="0" Text="Saved runs for each experiment" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,8,0" />
+            <StackPanel Grid.Row="0" Grid.Column="1" Spacing="2">
+              <NumericUpDown x:Name="RetentionBox" Minimum="1" Maximum="1000" Increment="10" FormatString="0"
+                             Value="{Binding HistoryRetentionInput, Mode=TwoWay}" HorizontalAlignment="Left" Width="140"
+                             AutomationProperties.Name="Saved runs for each experiment" />
+              <TextBlock Classes="notice" Margin="0" Text="A lower number removes the older runs the next time you run code." TextWrapping="Wrap" />
+              <TextBlock Classes="settings-error" Text="{Binding HistoryRetentionError}"
+                         IsVisible="{Binding HistoryRetentionError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                         AutomationProperties.Name="Retention problem" AutomationProperties.LiveSetting="Assertive" />
+            </StackPanel>
+          </Grid>
+          <StackPanel Spacing="6">
+            <Button x:Name="ClearHistoryButton" Content="Clear run history…" IsEnabled="{Binding CanClearHistory}"
+                    Click="OnClearHistoryClick" AutomationProperties.Name="Clear run history" />
+            <TextBlock Classes="notice" Margin="0" Text="{Binding HistoryStatus}" TextWrapping="Wrap"
+                       AutomationProperties.Name="History status" AutomationProperties.LiveSetting="Polite" />
+          </StackPanel>
+        </StackPanel>
+
+        <StackPanel Spacing="8">
+          <TextBlock Classes="settings-heading" Text="Updates" />
+          <CheckBox Content="Check for updates (at most once a day)" IsChecked="{Binding UpdateChecksEnabled, Mode=TwoWay}"
+                    AutomationProperties.Name="Check for updates" />
+          <StackPanel Spacing="6">
+            <Button Content="Check now" IsEnabled="{Binding CanCheckForUpdates}" Click="OnCheckUpdatesClick"
+                    AutomationProperties.Name="Check for updates now" />
+            <TextBlock Classes="notice" Margin="0" Text="{Binding UpdateStatus}" TextWrapping="Wrap"
+                       AutomationProperties.Name="Update status" AutomationProperties.LiveSetting="Polite" />
+          </StackPanel>
+        </StackPanel>
+
+        <StackPanel Spacing="8">
+          <TextBlock Classes="settings-heading" Text="Keyboard shortcuts" />
+          <ItemsControl ItemsSource="{Binding Shortcuts}" AutomationProperties.Name="Keyboard shortcuts">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="settings:KeyBinding">
+                <Grid ColumnDefinitions="250,*" AutomationProperties.Name="{Binding Description}">
+                  <TextBlock Grid.Column="0" Classes="settings-key" Text="{Binding Keys}" />
+                  <TextBlock Grid.Column="1" Text="{Binding Description}" TextWrapping="Wrap" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+
+      </StackPanel>
+    </ScrollViewer>
+
+  </DockPanel>
+
+</Window>

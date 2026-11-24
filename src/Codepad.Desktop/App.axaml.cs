@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using Codepad.Application.Settings;
 using Codepad.Desktop.Shell;
 
 namespace Codepad.Desktop;
@@ -29,6 +30,15 @@ public sealed partial class App : Avalonia.Application
         this.options = options;
     }
 
+    /// <summary>Applies the theme that the user chose. "System" follows the operating system.</summary>
+    /// <param name="theme">The theme.</param>
+    internal void ApplyTheme(ThemePreference theme) => RequestedThemeVariant = theme switch
+    {
+        ThemePreference.Light => Avalonia.Styling.ThemeVariant.Light,
+        ThemePreference.Dark => Avalonia.Styling.ThemeVariant.Dark,
+        _ => Avalonia.Styling.ThemeVariant.Default,
+    };
+
     /// <inheritdoc />
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -42,6 +52,13 @@ public sealed partial class App : Avalonia.Application
             if (options.ViewModel.Workspace is not null)
             {
                 Task.Run(() => options.ViewModel.Workspace.RestoreAsync()).GetAwaiter().GetResult();
+            }
+
+            // The saved theme applies before the window shows. A later change applies at once.
+            if (options.ViewModel.Settings is not null)
+            {
+                ApplyTheme(options.ViewModel.Settings.Current.Theme);
+                options.ViewModel.Settings.Changed += settings => ApplyTheme(settings.Theme);
             }
 
             MainWindow window = new MainWindow { DataContext = options.ViewModel };
