@@ -41,7 +41,8 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     /// <param name="history">The saved runs, for the clear command. Null when run history is not available.</param>
     /// <param name="reportFailure">Receives a reason code when a save or a clear fails. It never holds a path or a value. Null ignores it.</param>
     /// <param name="updates">The manual update check. Null when the app has no updater yet.</param>
-    public SettingsViewModel(IUserSettingsStore store, UserSettings initial, IRunHistoryRepository? history = null, Action<string>? reportFailure = null, IUpdateCheckHandoff? updates = null)
+    /// <param name="versionText">The installed version as text, for the About line. Null shows no line.</param>
+    public SettingsViewModel(IUserSettingsStore store, UserSettings initial, IRunHistoryRepository? history = null, Action<string>? reportFailure = null, IUpdateCheckHandoff? updates = null, string? versionText = null)
     {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(initial);
@@ -53,9 +54,10 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         this.store = store;
         this.history = history;
         this.updates = updates;
+        VersionText = versionText ?? string.Empty;
         this.reportFailure = reportFailure ?? (_ => { });
         current = initial;
-        updateStatus = updates is null ? "Checking for updates arrives in a later version. Your choice is saved for then." : string.Empty;
+        updateStatus = updates is null ? "Update checks are not available in this build. Your choice is saved." : string.Empty;
         Preferences.Update(initial.EditorFontSize, initial.IndentationWidth);
     }
 
@@ -185,6 +187,9 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
 
     /// <summary>Gets a value indicating whether the app can clear the history.</summary>
     public bool CanClearHistory => history is not null;
+
+    /// <summary>Gets the installed version for the About line, for example "CodePad 0.1.0", or an empty string.</summary>
+    public string VersionText { get; }
 
     /// <summary>Gets a value indicating whether the app can check for updates now. It can when the updater exists and the user allows checks.</summary>
     public bool CanCheckForUpdates => updates is not null;

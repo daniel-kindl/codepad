@@ -96,6 +96,28 @@
     <Setter Property="VerticalAlignment" Value="Center" />
   </Style>
 
+  <!-- The update notice. -->
+
+  <Style Selector="Border.update-banner">
+    <Setter Property="Background" Value="{DynamicResource ShellStatusBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ShellBorderBrush}" />
+    <Setter Property="BorderThickness" Value="0,0,0,1" />
+  </Style>
+
+  <Style Selector="TextBlock.update-title">
+    <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+    <Setter Property="FontSize" Value="{StaticResource ShellBodyFontSize}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="Border.update-banner.problem TextBlock.update-title">
+    <Setter Property="Foreground" Value="{DynamicResource ShellWarningTextBrush}" />
+  </Style>
+
+  <Style Selector="TextBlock.update-detail">
+    <Setter Property="Foreground" Value="{DynamicResource ShellMutedTextBrush}" />
+    <Setter Property="FontSize" Value="{StaticResource ShellBodyFontSize}" />
+  </Style>
+
   <!-- The settings window. -->
 
   <Style Selector="TextBlock.settings-heading">

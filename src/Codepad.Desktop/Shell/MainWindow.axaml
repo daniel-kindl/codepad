@@ -7,6 +7,7 @@
         xmlns:workspace="using:Codepad.Desktop.Workspace"
         xmlns:library="using:Codepad.Desktop.Library"
         xmlns:commands="using:Codepad.Desktop.Commands"
+        xmlns:updates="using:Codepad.Desktop.Updates"
         x:Class="Codepad.Desktop.Shell.MainWindow"
         x:DataType="shell:MainWindowViewModel"
         Title="{Binding Title}"
@@ -40,6 +41,10 @@
         <MenuItem Header="_Library" IsEnabled="{Binding HasLibrary}" Click="OnToggleLibraryClick" AutomationProperties.Name="Show or hide the library" />
       </MenuItem>
     </Menu>
+
+    <Panel DockPanel.Dock="Top" IsVisible="{Binding HasUpdates}">
+      <updates:UpdateBannerView DataContext="{Binding Updates}" />
+    </Panel>
 
     <Border DockPanel.Dock="Bottom" Classes="status-region">
       <StackPanel Spacing="2">

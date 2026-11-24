@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The helper that swaps the installation after CodePad exits and rolls back when the new version does not start. It has no dependency except the base class library. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net11.0</TargetFramework>
+    <AssemblyName>Codepad.Updater</AssemblyName>
+    <RootNamespace>Codepad.Updater</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Codepad.Tests" />
+  </ItemGroup>
+
+</Project>

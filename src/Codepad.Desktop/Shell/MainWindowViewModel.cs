@@ -4,6 +4,7 @@ using Codepad.Desktop.History;
 using Codepad.Desktop.Library;
 using Codepad.Desktop.Results;
 using Codepad.Desktop.Settings;
+using Codepad.Desktop.Updates;
 using Codepad.Desktop.Workspace;
 using Codepad.Language;
 
@@ -16,7 +17,8 @@ namespace Codepad.Desktop.Shell;
 /// <param name="workspace">The open tabs, or null when storage is not available. The window then shows one editor that does not save.</param>
 /// <param name="library">The library panel, or null when storage is not available. The window then hides the panel.</param>
 /// <param name="settings">The settings, or null. The window then has no settings command.</param>
-public sealed class MainWindowViewModel(IReadOnlyList<StartupNotice> notices, CSharpEditorViewModel? editor = null, RunHistoryViewModel? history = null, WorkspaceViewModel? workspace = null, LibraryViewModel? library = null, SettingsViewModel? settings = null)
+/// <param name="updates">The update notice, or null when updates are not available.</param>
+public sealed class MainWindowViewModel(IReadOnlyList<StartupNotice> notices, CSharpEditorViewModel? editor = null, RunHistoryViewModel? history = null, WorkspaceViewModel? workspace = null, LibraryViewModel? library = null, SettingsViewModel? settings = null, UpdateViewModel? updates = null)
 {
     /// <summary>The status text when the settings file is not usable.</summary>
     internal const string SETTINGS_UNUSABLE_TEXT = "Your settings file couldn't be read, so CodePad is using the default settings.";
@@ -49,6 +51,12 @@ public sealed class MainWindowViewModel(IReadOnlyList<StartupNotice> notices, CS
 
     /// <summary>Gets the function that receives the exception type name when a command handler fails. Null ignores it.</summary>
     public Action<string>? ReportCommandFailure { get; init; }
+
+    /// <summary>Gets the update notice, or null when updates are not available.</summary>
+    public UpdateViewModel? Updates { get; } = updates;
+
+    /// <summary>Gets a value indicating whether the window has an update notice.</summary>
+    public bool HasUpdates => Updates is not null;
 
     /// <summary>Gets the settings, or null.</summary>
     public SettingsViewModel? Settings { get; } = settings;

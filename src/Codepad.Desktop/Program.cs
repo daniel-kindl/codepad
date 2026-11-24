@@ -5,6 +5,7 @@ using Codepad.Application.Editing;
 using Codepad.Application.History;
 using Codepad.Application.Json;
 using Codepad.Application.Settings;
+using Codepad.Application.Updates;
 using Codepad.Application.Workspace;
 using Codepad.Application.Startup;
 using Codepad.Desktop.Editor;
@@ -13,10 +14,12 @@ using Codepad.Desktop.Json;
 using Codepad.Desktop.Library;
 using Codepad.Desktop.Results;
 using Codepad.Desktop.Settings;
+using Codepad.Desktop.Updates;
 using Codepad.Desktop.Workspace;
 using Codepad.Desktop.Shell;
 using Codepad.Infrastructure.Execution;
 using Codepad.Infrastructure.Startup;
+using Codepad.Infrastructure.Updates;
 using Codepad.Infrastructure.Storage;
 using Codepad.Language;
 using Microsoft.Extensions.Logging;
@@ -63,12 +66,15 @@ internal static partial class Program
 
         bool storeReady = !report.Notices.Any(notice => notice.Kind is StartupNoticeKind.DataFolderUnavailable or StartupNoticeKind.DataStoreUnavailable);
         SettingsViewModel? settingsHolder = null;
+        UpdateViewModel? updatesHolder = null;
         SqliteRunHistoryRepository? historyRepository = storeReady ? new SqliteRunHistoryRepository(database, () => settingsHolder!.Current.HistoryRetention) : null;
         SettingsViewModel settings = new SettingsViewModel(
             JsonUserSettingsStore.InFolder(folders.ConfigFolder),
             preferences.Settings,
             historyRepository,
-            reason => LogSettingsFailed(logger, reason));
+            reason => LogSettingsFailed(logger, reason),
+            storeReady ? new UpdateCheckHandoff(() => updatesHolder) : null,
+            "CodePad " + UpdateBootstrap.InstalledVersion());
         settingsHolder = settings;
         WorkspaceViewModel? workspace = report.Notices.Any(notice => notice.Kind is StartupNoticeKind.DataFolderUnavailable or StartupNoticeKind.DataStoreUnavailable)
             ? null
@@ -77,9 +83,12 @@ internal static partial class Program
             ? null
             : new LibraryViewModel(new SqliteLibraryRepository(database), workspace, TimeProvider.System, TimeSpan.FromMilliseconds(250), reportFailure: reason => LogLibraryFailed(logger, reason));
 
+        UpdateViewModel? updates = workspace is null ? null : CreateUpdates(database, folders, logger, settings, workspace);
+        updatesHolder = updates;
+
         string version = typeof(Program).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "unknown";
         ShellOptions options = new ShellOptions(
-            new MainWindowViewModel(report.Notices, new CSharpEditorViewModel(new CSharpHighlighter(), new CSharpAnalyzer(), TimeProvider.System, DiagnosticsCoordinator.DefaultDebounce, reportFailure: reason => LogAnalysisFailed(logger, reason), completion: new CSharpCompletionProvider(), reportCompletionFailure: reason => LogCompletionFailed(logger, reason), preferences: settings.Preferences), workspace: workspace, library: library, settings: settings) { ReportCommandFailure = reason => LogCommandFailed(logger, reason) },
+            new MainWindowViewModel(report.Notices, new CSharpEditorViewModel(new CSharpHighlighter(), new CSharpAnalyzer(), TimeProvider.System, DiagnosticsCoordinator.DefaultDebounce, reportFailure: reason => LogAnalysisFailed(logger, reason), completion: new CSharpCompletionProvider(), reportCompletionFailure: reason => LogCompletionFailed(logger, reason), preferences: settings.Preferences), workspace: workspace, library: library, settings: settings, updates: updates) { ReportCommandFailure = reason => LogCommandFailed(logger, reason) },
             () =>
             {
                 long startupMs = (long)Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds;
@@ -98,6 +107,55 @@ internal static partial class Program
             LogShellCrashed(logger, exception.GetType().FullName ?? exception.GetType().Name);
             throw;
         }
+    }
+
+    private static UpdateViewModel? CreateUpdates(SqliteDatabase database, AppFolderPaths folders, ILogger logger, SettingsViewModel settings, WorkspaceViewModel workspace)
+    {
+        SemanticVersion installed = UpdateBootstrap.InstalledVersion();
+        string updatesFolder = Path.Combine(folders.DataFolder, "updates");
+        string processPath = Environment.ProcessPath ?? string.Empty;
+        FileUpdateInstaller installer = new FileUpdateInstaller(new FileUpdateInstallerOptions(
+            AppContext.BaseDirectory,
+            updatesFolder,
+            Path.GetFileName(processPath),
+            AppContext.BaseDirectory,
+            installed.ToString(),
+            Path.Combine(folders.DataFolder, DATABASE_FILE_NAME),
+            database.BackupAsync,
+            Environment.ProcessId,
+            ["--post-update"],
+            TimeSpan.FromSeconds(60)));
+        UpdateService service = new UpdateService(
+            new GitHubUpdateSource(UpdateHttpClient.Create(TimeSpan.FromSeconds(20))),
+            new EcdsaManifestVerifier(UpdateBootstrap.PublicKeyPem()),
+            new HttpUpdateDownloader(UpdateHttpClient.Create(TimeSpan.FromMinutes(30)), Path.Combine(updatesFolder, "staging")),
+            installer,
+            new PreferenceUpdateStore(new SqlitePreferenceRepository(database)),
+            TimeProvider.System,
+            installed,
+            UpdatePlatform.Current(),
+            item => LogUpdateEvent(logger, item.Name, item.Version ?? "none", item.Code ?? "none"));
+        UpdateViewModel model = new UpdateViewModel(
+            service,
+            new PreferenceUpdateStore(new SqlitePreferenceRepository(database)),
+            installed,
+            enabled => settings.UpdateChecksEnabled = enabled,
+            () => workspace.TrySaveAllAsync(),
+            () => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
+                {
+                    desktop.Shutdown(0);
+                }
+            }));
+
+        // The helper leaves a result after an update. It tells the user whether the update worked or CodePad went back.
+        if (UpdateBootstrap.TakePreviousResult(Path.Combine(updatesFolder, FileUpdateInstaller.ResultFileName)) is (string from, string to, string status))
+        {
+            model.ShowPreviousResult(from, to, status);
+        }
+
+        return model;
     }
 
     private static WorkspaceViewModel OpenWorkspace(SqliteDatabase database, AppFolderPaths folders, ILoggerFactory loggerFactory, ILogger logger, SettingsViewModel settings, SqliteRunHistoryRepository historyRepository)
@@ -194,4 +252,8 @@ internal static partial class Program
     [LoggerMessage(EventId = 12, EventName = "autosave.failed", Level = LogLevel.Warning,
         Message = "An autosave failed: {Reason}. The text stays in the editor.")]
     private static partial void LogAutosaveFailed(ILogger logger, string reason);
+
+    [LoggerMessage(EventId = 13, EventName = "update.event", Level = LogLevel.Information,
+        Message = "Update: {Name}, version {Version}, code {Code}")]
+    private static partial void LogUpdateEvent(ILogger logger, string name, string version, string code);
 }

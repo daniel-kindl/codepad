@@ -12,7 +12,7 @@ For the product scope, see [PRODUCT.md](PRODUCT.md).
 `Codepad.Desktop`. Each module has its own assembly. [#2] added the domain model. See
 [Domain model](#domain-model). [#3] added storage. See
 [Storage and retention](#storage-and-retention). [#4] added Contracts and Worker. See
-[C# script semantics](#c-script-semantics) and [Worker protocol](#worker-protocol). [#5] added the C# editor, [#6] added completion and [#7] added the result panel. See [C# editor](#c-editor). [#8] added run history, [#9] added live JSON and [#10] added tabs, [#11] added the library and [#12] added the command palette and Run, and [#13] added the settings. [#19] added the CLI. See [Command line](#command-line).
+[C# script semantics](#c-script-semantics) and [Worker protocol](#worker-protocol). [#5] added the C# editor, [#6] added completion and [#7] added the result panel. See [C# editor](#c-editor). [#8] added run history, [#9] added live JSON and [#10] added tabs, [#11] added the library and [#12] added the command palette and Run, and [#13] added the settings. [#19] added the CLI. See [Command line](#command-line). [#17] added the updater. See [Updates](#updates).
 
 The Desktop app opens one window with a menu, a workspace region and a status region. The workspace
 holds a tab strip. Each tab is a C# experiment (editor, diagnostics and result panel) or a live JSON
@@ -560,6 +560,26 @@ The release documentation states this limit. See [#15].
 - **Not in scope.** No server, daemon, MCP, remote access, sandbox, or new operation kinds. How `codepad` gets on the PATH is the job of the
   packaging ([#15]) and the updater ([#17]).
 
+## Updates
+
+[#17] adds the in-app updater. The user-facing rules and the release contract are in [docs/updates.md](docs/updates.md).
+
+- **Application** (`Codepad.Application/Updates`): `SemanticVersion` (SemVer 2.0 order, stable or not), `UpdateManifestParser` (the checks of the
+  signed manifest), `UpdateSelector` (stable, newer, an archive for this platform), `UpdateService` (the state machine: check, download, verify,
+  hand off; one operation at a time; silent automatic checks) and the ports `IUpdateSource`, `IManifestVerifier`, `IUpdateDownloader`, `IUpdateInstaller` and `IUpdateStore`.
+  The service never installs without the call from the user, and it checks the signature before it reads the manifest.
+- **Infrastructure** (`Codepad.Infrastructure/Updates`): `GitHubUpdateSource` and `GuardedHttp` (HTTPS, official hosts, bounded redirects and sizes, no credentials),
+  `EcdsaManifestVerifier` (P-256 with SHA-256), `HttpUpdateDownloader` (staging, size and digest), `ArchiveExtractor` (zip and tar.gz, no path escape, no links),
+  `FileUpdateInstaller` (the platform hand-off for Linux and Windows) and `PreferenceUpdateStore`. OS-specific code stays in the installer and the helper.
+- **Helper** (`src/Codepad.Updater`): a small program with only the base class library. It runs from a copy outside the installation, waits for the app to exit,
+  swaps the folders, starts the new version and rolls back when the new version does not prove itself. `UpdateSwap` holds the logic and is tested with real folders.
+- **Desktop**: `UpdateViewModel` and `UpdateBannerView` (the notice at the top of the window), the Updates part of the settings, the startup check (8 seconds after the window opens, silent,
+  never in the launch smoke test) and the health file that the new version writes.
+- **Trust.** The signature of the manifest is the anchor, not the HTTPS connection and not a checksum from the release page. The public key is compiled into the app. A build without
+  a key installs nothing. The tag of the release must equal the signed version. An archive is checked by size and SHA-256 against the signed manifest when it arrives and again right before use.
+- **Failure.** A failure at any step leaves the installation unchanged and gives a readable message and a retry. Offline use, rate limits and a GitHub outage never block the app.
+- **Not in scope.** Delta updates, pre-releases, downgrades, an update server, administrator rights. The release process and the signing key belong to the owner ([#15]).
+
 ## Reliability and known limitations
 
 [#14] adds fault tests for the boundaries that fail in real use. This section lists what the app promises and what it does not.
@@ -644,7 +664,7 @@ Tests check that the source of a run is not in a log.
 
 ## Updater boundaries
 
-[#17] holds the full contract.
+[#17] holds the full contract. The implementation is in [Updates](#updates). The list below is the plan that it follows.
 
 - Application: `IUpdateService` checks, downloads, compares versions and reports status.
 - Infrastructure: the GitHub Releases client, the manifest and signature verifier and the staged
@@ -679,8 +699,8 @@ implementation. Record a durable decision as an ADR in `docs/adr/` when it passe
 | V-08 | Is a plain bounded SQLite query fast enough for search, or is FTS needed? Measure first. | [#11] |
 | V-09 | Which module holds the live JSON provider? Does it run in the desktop process on a background thread? Resolved in [#9]: `Codepad.Application`, in the desktop process on a thread-pool thread. See [Live JSON flow](#live-json-flow). | [#9] |
 | V-10 | Which Linux artifact format: an archive or a distribution package? | [#15] |
-| V-11 | Which signature scheme for the update manifest, and how does the owner keep the key? | [#15], [#17] |
-| V-12 | How does the update helper replace the app and roll back on each OS? | [#17] |
+| V-11 | Which signature scheme for the update manifest, and how does the owner keep the key? Partly resolved in [#17]: ECDSA P-256 with SHA-256 over the exact manifest bytes, a public key compiled into the app, a private key that the owner keeps outside the repository. [#15] makes the key and signs the manifest by hand. See [docs/updates.md](docs/updates.md). | [#15], [#17] |
+| V-12 | How does the update helper replace the app and roll back on each OS? Resolved in [#17]: a helper outside the installation renames whole folders after the app exits, waits for a health file of the new version, and rolls back by renaming again and restoring the database copy. See [Updates](#updates). | [#17] |
 | V-13 | Do Contracts use Domain to carry `ResultNode`? Does Worker use only Contracts? Partly resolved in [#2]: `ResultNode`, diagnostics and outcomes serialize with System.Text.Json and no package, so Contracts can carry them. Resolved in [#4]: Contracts use Domain. Worker uses only Contracts, Domain and Roslyn. | [#1], [#2], [#4] |
 | V-14 | How do the CLI and a running desktop app share one SQLite database safely? Resolved in [#19]: one file in WAL mode, a writer waits up to 5 seconds, and the revision of an experiment stops a lost write. See [Command line](#command-line). | [#3], [#19] |
 | V-15 | Is the CLI a separate executable or a mode of the desktop executable? How does it get on the PATH? Partly resolved in [#19]: a separate executable, `codepad`. The PATH is the job of [#15] and [#17]. | [#15], [#17], [#19] |

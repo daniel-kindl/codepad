@@ -376,6 +376,37 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IAsyncDisposabl
         return !blocked;
     }
 
+    /// <summary>
+    /// Saves every tab and the session, and tells whether all of it is stored. Unlike <see cref="TryCloseAllAsync"/>, this never
+    /// agrees to discard text. An update uses it: a restart must not cost any work.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the wait.</param>
+    /// <returns>True when no tab has unsaved text and no tab has a failed save.</returns>
+    public async Task<bool> TrySaveAllAsync(CancellationToken cancellationToken = default)
+    {
+        for (int pass = 0; pass < MAX_FLUSH_PASSES; pass++)
+        {
+            foreach (ExperimentTabViewModel tab in Tabs.ToList())
+            {
+                await tab.FlushAsync(cancellationToken).ConfigureAwait(true);
+            }
+
+            if (!Tabs.Any(tab => tab.IsUnsaved))
+            {
+                break;
+            }
+        }
+
+        // No await from here to the return: the answer describes the tabs as they are now.
+        if (Tabs.Any(tab => tab.IsUnsaved || tab.HasSaveProblem))
+        {
+            return false;
+        }
+
+        await sessionSaved.ConfigureAwait(true);
+        return true;
+    }
+
     /// <summary>Stops all tabs. It does not save: call <see cref="TryCloseAllAsync"/> first.</summary>
     /// <returns>A task that ends when all tabs stopped.</returns>
     public async ValueTask DisposeAsync()

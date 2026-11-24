@@ -129,7 +129,7 @@ public sealed class SettingsViewTests : IDisposable
         }
 
         Assert.False(Named<Button>(dialog, "Check for updates now").IsEnabled);
-        Assert.Contains(dialog.GetVisualDescendants().OfType<TextBlock>(), block => block.Text?.Contains("later version", StringComparison.Ordinal) == true);
+        Assert.Contains(dialog.GetVisualDescendants().OfType<TextBlock>(), block => block.Text?.Contains("not available in this build", StringComparison.Ordinal) == true);
         dialog.Close();
         window.Close();
     }

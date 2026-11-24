@@ -1,0 +1,44 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:updates="using:Codepad.Desktop.Updates"
+             x:Class="Codepad.Desktop.Updates.UpdateBannerView"
+             x:DataType="updates:UpdateViewModel"
+             IsVisible="{Binding IsVisible}">
+
+  <Border Classes="update-banner" Classes.problem="{Binding IsProblem}" AutomationProperties.Name="{Binding AccessibleName}">
+    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" Margin="12,8">
+
+      <StackPanel Grid.Row="0" Grid.Column="0" Spacing="2">
+        <TextBlock Classes="update-title" Text="{Binding Title}" TextWrapping="Wrap"
+                   AutomationProperties.Name="Update status" AutomationProperties.LiveSetting="Polite" />
+        <TextBlock Classes="update-detail" Text="{Binding Detail}" TextWrapping="Wrap"
+                   IsVisible="{Binding Detail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      </StackPanel>
+
+      <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Top" Margin="12,0,0,0">
+        <Button Content="Keep checking" IsVisible="{Binding ShowPrompt}" Click="OnKeepCheckingClick" AutomationProperties.Name="Keep checking for updates once a day" />
+        <Button Content="Turn off" IsVisible="{Binding ShowPrompt}" Click="OnTurnOffClick" AutomationProperties.Name="Turn off automatic update checks" />
+        <Button Classes="accent" Content="Download and install" IsVisible="{Binding CanDownload}" Click="OnDownloadClick" AutomationProperties.Name="Download and install the update" />
+        <Button Classes="accent" Content="Restart and install" IsVisible="{Binding CanInstall}" Click="OnInstallClick" AutomationProperties.Name="Save my work, restart CodePad and install the update" />
+        <Button Content="Cancel" IsVisible="{Binding CanCancel}" Click="OnCancelClick" AutomationProperties.Name="Cancel the download" />
+        <Button Content="Try again" IsVisible="{Binding CanRetry}" Click="OnRetryClick" AutomationProperties.Name="Try the update again" />
+        <Button Content="Later" IsVisible="{Binding CanLater}" Click="OnLaterClick" AutomationProperties.Name="Decide later" />
+        <Button Content="Close" IsVisible="{Binding CanDismiss}" Click="OnDismissClick" AutomationProperties.Name="Close this notice" />
+      </StackPanel>
+
+      <ProgressBar Grid.Row="1" Grid.ColumnSpan="2" Margin="0,8,0,0" Minimum="0" Maximum="100" Value="{Binding Percent}"
+                   IsIndeterminate="{Binding IsIndeterminate}" IsVisible="{Binding ShowProgress}"
+                   AutomationProperties.Name="Download progress" />
+
+      <Expander Grid.Row="2" Grid.ColumnSpan="2" Header="What is new" Margin="0,6,0,0"
+                IsVisible="{Binding ReleaseNotes, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                AutomationProperties.Name="Release notes">
+        <ScrollViewer MaxHeight="140">
+          <SelectableTextBlock Text="{Binding ReleaseNotes}" TextWrapping="Wrap" />
+        </ScrollViewer>
+      </Expander>
+
+    </Grid>
+  </Border>
+
+</UserControl>
