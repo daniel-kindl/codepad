@@ -23,6 +23,10 @@ root="${CODEPAD_INSTALL_DIR:-$data_home/CodePad}"
 bin_dir="${CODEPAD_BIN_DIR:-$HOME/.local/bin}"
 apps_dir="${CODEPAD_APPLICATIONS_DIR:-$data_home/applications}"
 
+case "$root" in
+  ""|"/"|"$HOME"|"$HOME/"|"$data_home"|"$data_home/") fail "CODEPAD_INSTALL_DIR must be a folder of its own, not $root" ;;
+esac
+
 rm -rf "$root/app" "$root/app.new" "$root/app.old"
 rmdir "$root" 2>/dev/null || true
 if [ -L "$bin_dir/codepad" ]; then rm -f "$bin_dir/codepad"; fi

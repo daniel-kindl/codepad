@@ -46,7 +46,7 @@ internal static class Program
                 _ => Fail($"Unknown command '{args[0]}'."),
             };
         }
-        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or IOException or UpdateManifestException or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or IOException or UpdateManifestException or UnauthorizedAccessException or FormatException)
         {
             return Fail(exception.Message);
         }
@@ -117,7 +117,7 @@ internal static class Program
         string notes = File.ReadAllText(Required(options, "--notes"));
         DateTimeOffset published = options.GetValueOrDefault("--published")?.FirstOrDefault() is string text
             ? DateTimeOffset.Parse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal)
-            : new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+            : DateTimeOffset.UtcNow;
         byte[] manifest = ReleaseManifestBuilder.Build(parsed.ToString(), notes, published, [new ReleaseArchive("linux-x64", Required(options, "--linux")), new ReleaseArchive("win-x64", Required(options, "--windows"))]);
 
         // The same rules as the app: a manifest that the app would reject must not leave the tool.

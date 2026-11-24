@@ -112,8 +112,9 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or $result -notmatch '"outcome":"Success"' -or $result -notmatch '"value":"2"') { throw 'The packaged command did not run C#.' }
           $json = '{ "a": [1, 2] }' | & (Join-Path $app 'codepad.exe') json
           if ($LASTEXITCODE -ne 0 -or $json -notmatch '"valid":true') { throw 'The packaged command did not format JSON.' }
-          & (Join-Path $app 'Codepad.Desktop.exe') --smoke-test
-          if ($LASTEXITCODE -ne 0) { throw 'The packaged app did not start.' }
+          # Codepad.Desktop.exe is a Windows GUI program. PowerShell does not wait for it, so Start-Process waits and gives the exit code.
+          $smoke = Start-Process -FilePath (Join-Path $app 'Codepad.Desktop.exe') -ArgumentList '--smoke-test' -Wait -PassThru
+          if ($smoke.ExitCode -ne 0) { throw "The packaged app did not start (exit code $($smoke.ExitCode))." }
           ./packaging/uninstall.ps1
 
       - name: Upload the packages and the checksums
@@ -150,7 +151,6 @@ jobs:
         with:
           pattern: package-*
           path: dist
-          merge-multiple: true
 
       # The manifest is made from the real archives. A throwaway key (it lives only in this job and is never saved) proves that the
       # signature code and the verification code agree. The real manifest is signed by the owner with the owner's key. This job never signs a release.
@@ -159,10 +159,10 @@ jobs:
         run: |
           printf 'Release notes are written by the owner.\n' > notes.txt
           tool="dotnet run --project tools/Codepad.ReleaseTool --configuration Release --no-restore --"
-          $tool manifest --version "$VERSION" --notes notes.txt --linux "dist/codepad-$VERSION-linux-x64.tar.gz" --windows "dist/codepad-$VERSION-win-x64.zip" --out dist/manifest.json
+          $tool manifest --version "$VERSION" --notes notes.txt --linux "dist/package-linux-x64/codepad-$VERSION-linux-x64.tar.gz" --windows "dist/package-win-x64/codepad-$VERSION-win-x64.zip" --out dist/manifest.json
           $tool keygen --out "$RUNNER_TEMP/throwaway"
           $tool sign --key "$RUNNER_TEMP/throwaway/release-private.pem" --manifest dist/manifest.json
-          $tool verify --public-key "$RUNNER_TEMP/throwaway/release-public.pem" --manifest dist/manifest.json --archive "dist/codepad-$VERSION-linux-x64.tar.gz" --archive "dist/codepad-$VERSION-win-x64.zip"
+          $tool verify --public-key "$RUNNER_TEMP/throwaway/release-public.pem" --manifest dist/manifest.json --archive "dist/package-linux-x64/codepad-$VERSION-linux-x64.tar.gz" --archive "dist/package-win-x64/codepad-$VERSION-win-x64.zip"
           rm -f dist/manifest.json.sig
           cat dist/manifest.json
 

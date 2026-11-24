@@ -30,9 +30,16 @@ root="${CODEPAD_INSTALL_DIR:-$data_home/CodePad}"
 bin_dir="${CODEPAD_BIN_DIR:-$HOME/.local/bin}"
 apps_dir="${CODEPAD_APPLICATIONS_DIR:-$data_home/applications}"
 
-# Check the digest when the user gives one, or when a SHA256SUMS file stands next to the archive.
-if [ -z "$expected" ] && [ -f "$(dirname "$archive")/SHA256SUMS" ]; then
-  expected="$(grep -F "  $(basename "$archive")" "$(dirname "$archive")/SHA256SUMS" | cut -d' ' -f1 || true)"
+# A folder that is the home folder or the root of the file system would be wiped by an update or an uninstall. Refuse it.
+case "$root" in
+  ""|"/"|"$HOME"|"$HOME/"|"$data_home"|"$data_home/") fail "CODEPAD_INSTALL_DIR must be a folder of its own, not $root" ;;
+esac
+
+# Check the digest when the user gives one, or when a SHA256SUMS file stands next to the archive. The name must match the whole name.
+sums="$(dirname "$archive")/SHA256SUMS"
+if [ -z "$expected" ] && [ -f "$sums" ]; then
+  expected="$(awk -v name="$(basename "$archive")" '$2 == name { print $1 }' "$sums" | head -n 1)"
+  [ -n "$expected" ] || fail "SHA256SUMS does not list $(basename "$archive"). Nothing was installed."
 fi
 if [ -n "$expected" ]; then
   actual="$(sha256sum "$archive" | cut -d' ' -f1)"
@@ -58,7 +65,11 @@ mv "$stage" "$root/app"
 rm -rf "$root/app.old"
 trap - EXIT
 
-ln -sfn "$root/app/codepad" "$bin_dir/codepad"
+if [ -e "$bin_dir/codepad" ] && [ ! -L "$bin_dir/codepad" ]; then
+  echo "install.sh: $bin_dir/codepad is not a link, so it was left as it is. Use $root/app/codepad." >&2
+else
+  ln -sfn "$root/app/codepad" "$bin_dir/codepad"
+fi
 cat > "$apps_dir/codepad.desktop" <<DESKTOP
 [Desktop Entry]
 Type=Application

@@ -29,8 +29,9 @@ if (-not $Sha256) {
     $sums = Join-Path (Split-Path -Parent $archivePath) 'SHA256SUMS'
     if (Test-Path -LiteralPath $sums) {
         $name = Split-Path -Leaf $archivePath
-        $line = Get-Content -LiteralPath $sums | Where-Object { $_ -like "* *$name" -or $_ -like "*  $name" } | Select-Object -First 1
-        if ($line) { $Sha256 = ($line -split '\s+')[0] }
+        $line = Get-Content -LiteralPath $sums | Where-Object { ($_ -split '\s+')[1] -eq $name } | Select-Object -First 1
+        if (-not $line) { throw "SHA256SUMS does not list $name. Nothing was installed." }
+        $Sha256 = ($line -split '\s+')[0]
     }
 }
 if ($Sha256) {

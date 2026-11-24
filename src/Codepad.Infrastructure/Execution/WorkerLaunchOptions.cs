@@ -43,12 +43,6 @@ public sealed record WorkerLaunchOptions(string FileName, IReadOnlyList<string> 
             : ForWorkerAssembly(assembly, workingDirectory);
     }
 
-    /// <summary>
-    /// Finds the .NET host that matches the running runtime. The search order is: the current process when it is the host,
-    /// the <c>DOTNET_HOST_PATH</c> variable, and the folder that holds the shared runtime. The last choice is the name
-    /// <c>dotnet</c> on the search path.
-    /// </summary>
-    /// <returns>The path or the name of the host.</returns>
     // A self-contained app lists "includedFrameworks" in its runtime configuration. A framework-dependent app lists "framework".
     private static bool IsSelfContained(string runtimeConfigPath)
     {
@@ -62,6 +56,12 @@ public sealed record WorkerLaunchOptions(string FileName, IReadOnlyList<string> 
         }
     }
 
+    /// <summary>
+    /// Finds the .NET host that matches the running runtime. The search order is: the current process when it is the host,
+    /// the <c>DOTNET_HOST_PATH</c> variable, and the folder that holds the shared runtime. The last choice is the name
+    /// <c>dotnet</c> on the search path.
+    /// </summary>
+    /// <returns>The path or the name of the host.</returns>
     internal static string ResolveDotnetHost()
     {
         string hostName = OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet";

@@ -76,9 +76,9 @@ internal static class Packager
             {
                 Directory.Delete(work, recursive: true);
             }
-            catch (IOException)
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
-                // A temporary folder. The system cleans it later.
+                // A temporary folder. The system cleans it later. A failure here must not hide the real error.
             }
         }
     }

@@ -23,19 +23,19 @@ dotnet run --project tools/Codepad.ReleaseTool -c Release -- keygen --out ~/code
 4. **Manifest.** Download the two packages, write the release notes in a text file, and make the manifest (or use `manifest-unsigned` after you check it):
 
    ```bash
-   codepad-release manifest --version 0.1.0 --notes notes.txt --linux codepad-0.1.0-linux-x64.tar.gz --windows codepad-0.1.0-win-x64.zip --out manifest.json
+   dotnet run --project tools/Codepad.ReleaseTool -c Release --no-restore -- manifest --version 0.1.0 --notes notes.txt --linux codepad-0.1.0-linux-x64.tar.gz --windows codepad-0.1.0-win-x64.zip --out manifest.json
    ```
 
 5. **Sign** on your own machine, with your key:
 
    ```bash
-   codepad-release sign --key ~/codepad-keys/release-private.pem --manifest manifest.json     # writes manifest.json.sig
-   codepad-release verify --public-key src/Codepad.Desktop/Updates/UpdatePublicKey.pem --manifest manifest.json \
+   dotnet run --project tools/Codepad.ReleaseTool -c Release --no-restore -- sign --key ~/codepad-keys/release-private.pem --manifest manifest.json     # writes manifest.json.sig
+   dotnet run --project tools/Codepad.ReleaseTool -c Release --no-restore -- verify --public-key src/Codepad.Desktop/Updates/UpdatePublicKey.pem --manifest manifest.json \
      --archive codepad-0.1.0-linux-x64.tar.gz --archive codepad-0.1.0-win-x64.zip
    ```
 
    `verify` uses the same code as the app. Sign the exact bytes of `manifest.json` and do not edit the file after that.
-6. **Publish** a GitHub release for the tag with these files: the two archives, `manifest.json`, `manifest.json.sig`, `SHA256SUMS`, `install.sh`, `install.ps1`, `uninstall.sh`, `uninstall.ps1`. Make it a
+6. **Publish** a GitHub release for the tag with these files: the two archives, `manifest.json`, `manifest.json.sig`, one `SHA256SUMS` that lists both archives (make it with `checksums --out SHA256SUMS <both archives>`), `install.sh`, `install.ps1`, `uninstall.sh`, `uninstall.ps1`. Make it a
    draft first. A draft is not seen by the updater. Publish it (not as a pre-release) when you are satisfied.
 7. **Upgrade test.** Install the previous version on Linux and on Windows, publish the new release, and check that the old version offers the update, installs it and keeps your data. See `docs/acceptance.md`.
 
