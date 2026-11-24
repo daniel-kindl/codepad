@@ -7,6 +7,7 @@ using Codepad.Application.Experiments;
 using Codepad.Application.Workspace;
 using Codepad.Desktop.Editor;
 using Codepad.Desktop.Json;
+using Codepad.Desktop.Results;
 using Codepad.Domain.Experiments;
 using Codepad.Domain.Operations;
 
@@ -29,6 +30,7 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IAsyncDisposabl
     private readonly Func<JsonToolViewModel> createTool;
     private readonly Action<Action> post;
     private readonly Action<string> reportFailure;
+    private readonly RunController? runs;
     private const int MAX_FLUSH_PASSES = 5;
 
     // A double click or a held key repeats a request within this time. Only a later request means "discard".
@@ -51,7 +53,8 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IAsyncDisposabl
     /// <param name="createTool">Creates the tool of a JSON tab.</param>
     /// <param name="post">Runs an action on the UI thread. Null uses the Avalonia UI thread.</param>
     /// <param name="reportFailure">Receives the exception type name when the session cannot be saved or read. Null ignores it.</param>
-    public WorkspaceViewModel(IExperimentRepository experiments, SessionStore sessionStore, TimeProvider timeProvider, Func<CSharpEditorViewModel> createEditor, Func<JsonToolViewModel> createTool, Action<Action>? post = null, Action<string>? reportFailure = null)
+    /// <param name="runs">Runs C# tabs and owns the shared result and history panels. Null means that the app cannot run code.</param>
+    public WorkspaceViewModel(IExperimentRepository experiments, SessionStore sessionStore, TimeProvider timeProvider, Func<CSharpEditorViewModel> createEditor, Func<JsonToolViewModel> createTool, Action<Action>? post = null, Action<string>? reportFailure = null, RunController? runs = null)
     {
         ArgumentNullException.ThrowIfNull(experiments);
         ArgumentNullException.ThrowIfNull(sessionStore);
@@ -65,6 +68,7 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IAsyncDisposabl
         this.createTool = createTool;
         this.post = post ?? (action => Dispatcher.UIThread.Post(action));
         this.reportFailure = reportFailure ?? (_ => { });
+        this.runs = runs;
     }
 
     /// <inheritdoc />
@@ -92,8 +96,29 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IAsyncDisposabl
 
                 Raise();
                 Raise(nameof(ActiveSaveText));
+                Raise(nameof(ActiveResults));
+                runs?.OnActivated(value);
             }
         }
+    }
+
+    /// <summary>Gets the run controller, or null when the app cannot run code.</summary>
+    public RunController? Runs => runs;
+
+    /// <summary>Gets the result panel of the active tab, or null when no tab is open. The Copy command uses it.</summary>
+    public ResultsViewModel? ActiveResults => ActiveTab switch
+    {
+        CSharpTabViewModel csharp => csharp.Results,
+        JsonTabViewModel json => json.Tool.Results,
+        _ => null,
+    };
+
+    /// <summary>Shows a notice to the user.</summary>
+    /// <param name="text">The sentence.</param>
+    public void ShowNotice(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        Notice = text;
     }
 
     /// <summary>Gets a value indicating whether at least one tab is open.</summary>
@@ -391,7 +416,7 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IAsyncDisposabl
         Experiment experiment = session.Current;
         ExperimentTabViewModel tab = experiment.Kind == OperationKind.Json
             ? new JsonTabViewModel(session, createTool(), timeProvider, post)
-            : new CSharpTabViewModel(session, createEditor(), timeProvider, post);
+            : new CSharpTabViewModel(session, createEditor(), timeProvider, post, runs?.Results, runs?.History);
         tab.PropertyChanged += OnTabChanged;
         Tabs.Add(tab);
         Raise(nameof(HasTabs));

@@ -16,7 +16,7 @@ internal sealed class WorkspaceFixture
 {
     private readonly Queue<Action> ui = new Queue<Action>();
 
-    public WorkspaceFixture()
+    public WorkspaceFixture(Func<WorkspaceFixture, RunController>? createRuns = null)
     {
         Session = new SessionStore(Preferences);
         Model = new WorkspaceViewModel(
@@ -26,7 +26,8 @@ internal sealed class WorkspaceFixture
             () => new CSharpEditorViewModel(new NoHighlighter(), new NoAnalyzer(), Time, TimeSpan.FromMilliseconds(250), Post),
             () => new JsonToolViewModel(new JsonEvaluator(), Time, TimeSpan.FromMilliseconds(250), Post),
             Post,
-            Failures.Add);
+            Failures.Add,
+            createRuns?.Invoke(this));
     }
 
     public ManualTimeProvider Time { get; } = new ManualTimeProvider();

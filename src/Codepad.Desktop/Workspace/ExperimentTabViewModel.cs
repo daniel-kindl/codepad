@@ -50,6 +50,9 @@ public abstract class ExperimentTabViewModel : INotifyPropertyChanged, IAsyncDis
     /// <summary>Gets the kind as a short word for the tab label.</summary>
     public string KindText => Kind == OperationKind.Json ? "JSON" : "C#";
 
+    /// <summary>Gets the experiment as it is now, including edits that autosave has not written yet. A run takes its snapshot from it.</summary>
+    public Experiment CurrentExperiment => session.Current;
+
     /// <summary>Gets the current source, including edits that autosave has not written yet.</summary>
     public string Source => session.Current.Source;
 

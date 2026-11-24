@@ -30,13 +30,16 @@ public sealed class ResultsViewModel : INotifyPropertyChanged
     internal const string NO_RUN_TEXT = "No run yet";
 
     /// <summary>The text of the result tab before the first run.</summary>
-    internal const string EMPTY_RESULT_TEXT = "Run results appear here. Running code isn't available in this build yet.";
+    internal const string EMPTY_RESULT_TEXT = "Run results appear here. Press Ctrl+Enter to run this code.";
 
     /// <summary>The text of the result tab when a run succeeded and returned no value.</summary>
     internal const string NO_VALUE_TEXT = "This run returned no value.";
 
     /// <summary>The notice when the clipboard did not take the text.</summary>
     internal const string COPY_FAILED_TEXT = "CodePad couldn't copy to the clipboard.";
+
+    /// <summary>The status text while a run is in progress.</summary>
+    internal const string RUNNING_TEXT = "Running…";
 
     /// <summary>The notice above a value that comes from an earlier run.</summary>
     internal const string PREVIOUS_RUN_TEXT = "This run has no value of its own. The panel shows the value of the last successful run.";
@@ -247,6 +250,26 @@ public sealed class ResultsViewModel : INotifyPropertyChanged
                 ? "The code did not compile. See Problems."
                 : "This run has no value. See Problems and Errors.";
         }
+    }
+
+    /// <summary>Shows that a run is in progress. The value and the problems of the last run stay until the run ends.</summary>
+    public void BeginRun()
+    {
+        StatusText = RUNNING_TEXT;
+        StatusKind = "idle";
+        CopyNotice = string.Empty;
+    }
+
+    /// <summary>Shows that a run ended without a report, for example because the app failed to run it.</summary>
+    /// <param name="statusText">The status phrase.</param>
+    /// <param name="emptyText">The text of the empty result.</param>
+    public void ShowStopped(string statusText, string emptyText)
+    {
+        ArgumentNullException.ThrowIfNull(statusText);
+        ArgumentNullException.ThrowIfNull(emptyText);
+        ResetPreviewParts(statusText, "error", string.Empty);
+        ShowValue(null, previous: false);
+        EmptyText = emptyText;
     }
 
     /// <summary>Shows the value of a live preview. A preview has no run, no output and no execution ID.</summary>

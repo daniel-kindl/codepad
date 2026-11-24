@@ -47,7 +47,7 @@ public sealed class RunHistoryViewModel : INotifyPropertyChanged
     private RunRecord? inspected;
     private string notice = string.Empty;
     private string emptyText = NO_EXPERIMENT_TEXT;
-    private bool isBusy;
+    private readonly RunGate gate;
     private int navigation;
     private int listVersion;
 
@@ -55,7 +55,8 @@ public sealed class RunHistoryViewModel : INotifyPropertyChanged
     /// <param name="history">Reads the saved runs.</param>
     /// <param name="service">Runs a snapshot again and stores the run.</param>
     /// <param name="results">The result panel that shows the saved or the new run.</param>
-    public RunHistoryViewModel(IRunHistoryRepository history, RunHistoryService service, ResultsViewModel results)
+    /// <param name="gate">Lets one run go at a time. Share it with the Run command. Null gives this model its own gate.</param>
+    public RunHistoryViewModel(IRunHistoryRepository history, RunHistoryService service, ResultsViewModel results, RunGate? gate = null)
     {
         ArgumentNullException.ThrowIfNull(history);
         ArgumentNullException.ThrowIfNull(service);
@@ -63,6 +64,8 @@ public sealed class RunHistoryViewModel : INotifyPropertyChanged
         this.history = history;
         this.service = service;
         this.results = results;
+        this.gate = gate ?? new RunGate();
+        this.gate.Changed += () => Raise(nameof(CanRerun));
     }
 
     /// <inheritdoc />
@@ -103,7 +106,7 @@ public sealed class RunHistoryViewModel : INotifyPropertyChanged
         : string.Create(CultureInfo.InvariantCulture, $"Saved run from {inspected.CompletedAt.ToLocalTime():yyyy-MM-dd HH:mm:ss}. This is the code as it was then. Your current code is unchanged.");
 
     /// <summary>Gets a value indicating whether Rerun has a saved run and no run is active.</summary>
-    public bool CanRerun => inspected is not null && !isBusy;
+    public bool CanRerun => inspected is not null && !gate.IsRunning;
 
     /// <summary>Shows the saved runs of an experiment. It ends any inspection.</summary>
     /// <param name="id">The experiment.</param>
@@ -167,14 +170,12 @@ public sealed class RunHistoryViewModel : INotifyPropertyChanged
     public async Task RerunAsync(CancellationToken cancellationToken = default)
     {
         RunRecord? source = inspected;
-        if (source is null || isBusy)
+        if (source is null || !gate.TryEnter())
         {
             return;
         }
 
         int mine = navigation;
-        isBusy = true;
-        Raise(nameof(CanRerun));
         try
         {
             CompletedRun run = await service.RerunAsync(source, cancellationToken).ConfigureAwait(true);
@@ -198,8 +199,7 @@ public sealed class RunHistoryViewModel : INotifyPropertyChanged
         }
         finally
         {
-            isBusy = false;
-            Raise(nameof(CanRerun));
+            gate.Exit();
         }
     }
 

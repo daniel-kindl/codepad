@@ -42,6 +42,9 @@ public sealed class MainWindowViewModel(IReadOnlyList<StartupNotice> notices, CS
     /// <summary>Gets the open tabs, or null when storage is not available.</summary>
     public WorkspaceViewModel? Workspace { get; } = workspace;
 
+    /// <summary>Gets the function that receives the exception type name when a command handler fails. Null ignores it.</summary>
+    public Action<string>? ReportCommandFailure { get; init; }
+
     /// <summary>Gets the library panel, or null when storage is not available.</summary>
     public LibraryViewModel? Library { get; } = library;
 

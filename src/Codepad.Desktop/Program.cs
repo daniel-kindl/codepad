@@ -2,14 +2,18 @@ using System.Diagnostics;
 using System.Reflection;
 using Avalonia;
 using Codepad.Application.Editing;
+using Codepad.Application.History;
 using Codepad.Application.Json;
 using Codepad.Application.Workspace;
 using Codepad.Application.Startup;
 using Codepad.Desktop.Editor;
+using Codepad.Desktop.History;
 using Codepad.Desktop.Json;
 using Codepad.Desktop.Library;
+using Codepad.Desktop.Results;
 using Codepad.Desktop.Workspace;
 using Codepad.Desktop.Shell;
+using Codepad.Infrastructure.Execution;
 using Codepad.Infrastructure.Startup;
 using Codepad.Infrastructure.Storage;
 using Codepad.Language;
@@ -25,6 +29,9 @@ internal static partial class Program
 
     /// <summary>The name of the experiment database in the data folder.</summary>
     private const string DATABASE_FILE_NAME = "codepad.db";
+
+    /// <summary>The name of the working folder of the worker in the data folder.</summary>
+    private const string RUN_FOLDER_NAME = "runs";
 
     [STAThread]
     public static int Main(string[] args)
@@ -47,14 +54,14 @@ internal static partial class Program
 
         WorkspaceViewModel? workspace = report.Notices.Any(notice => notice.Kind is StartupNoticeKind.DataFolderUnavailable or StartupNoticeKind.DataStoreUnavailable)
             ? null
-            : OpenWorkspace(database, logger);
+            : OpenWorkspace(database, folders, loggerFactory, logger);
         LibraryViewModel? library = workspace is null
             ? null
             : new LibraryViewModel(new SqliteLibraryRepository(database), workspace, TimeProvider.System, TimeSpan.FromMilliseconds(250), reportFailure: reason => LogLibraryFailed(logger, reason));
 
         string version = typeof(Program).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "unknown";
         ShellOptions options = new ShellOptions(
-            new MainWindowViewModel(report.Notices, new CSharpEditorViewModel(new CSharpHighlighter(), new CSharpAnalyzer(), TimeProvider.System, DiagnosticsCoordinator.DefaultDebounce, reportFailure: reason => LogAnalysisFailed(logger, reason), completion: new CSharpCompletionProvider(), reportCompletionFailure: reason => LogCompletionFailed(logger, reason)), workspace: workspace, library: library),
+            new MainWindowViewModel(report.Notices, new CSharpEditorViewModel(new CSharpHighlighter(), new CSharpAnalyzer(), TimeProvider.System, DiagnosticsCoordinator.DefaultDebounce, reportFailure: reason => LogAnalysisFailed(logger, reason), completion: new CSharpCompletionProvider(), reportCompletionFailure: reason => LogCompletionFailed(logger, reason)), workspace: workspace, library: library) { ReportCommandFailure = reason => LogCommandFailed(logger, reason) },
             () =>
             {
                 long startupMs = (long)Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds;
@@ -75,15 +82,39 @@ internal static partial class Program
         }
     }
 
-    private static WorkspaceViewModel OpenWorkspace(SqliteDatabase database, ILogger logger)
+    private static WorkspaceViewModel OpenWorkspace(SqliteDatabase database, AppFolderPaths folders, ILoggerFactory loggerFactory, ILogger logger)
     {
-        WorkspaceViewModel workspace = new WorkspaceViewModel(
+        // The worker gets one stable working folder in the data folder. A run can write files there. It cannot reach the database.
+        string runFolder = Path.Combine(folders.DataFolder, RUN_FOLDER_NAME);
+        Directory.CreateDirectory(runFolder);
+        WorkerLaunchOptions? worker = WorkerLaunchOptions.Locate(AppContext.BaseDirectory, runFolder);
+
+        ResultsViewModel results = new ResultsViewModel();
+        RunHistoryService? service = worker is null
+            ? null
+            : new RunHistoryService(new WorkerSupervisor(worker, loggerFactory.CreateLogger<WorkerSupervisor>()), new SqliteRunHistoryRepository(database), TimeProvider.System);
+        RunGate gate = new RunGate();
+        RunHistoryViewModel? history = service is null ? null : new RunHistoryViewModel(new SqliteRunHistoryRepository(database), service, results, gate);
+
+        WorkspaceViewModel? workspace = null;
+        RunController runs = new RunController(
+            service,
+            history,
+            results,
+            action => Avalonia.Threading.Dispatcher.UIThread.Post(action),
+            text => workspace?.ShowNotice(text),
+            reason => LogRunFailed(logger, reason),
+            worker is null ? "The worker program is missing, so CodePad can't run code. Reinstall CodePad." : null,
+            gate);
+
+        workspace = new WorkspaceViewModel(
             new SqliteExperimentRepository(database),
             new SessionStore(new SqlitePreferenceRepository(database)),
             TimeProvider.System,
             () => new CSharpEditorViewModel(new CSharpHighlighter(), new CSharpAnalyzer(), TimeProvider.System, DiagnosticsCoordinator.DefaultDebounce, reportFailure: reason => LogAnalysisFailed(logger, reason), completion: new CSharpCompletionProvider(), reportCompletionFailure: reason => LogCompletionFailed(logger, reason)),
             () => new JsonToolViewModel(new JsonEvaluator(), TimeProvider.System, LiveJsonCoordinator.DefaultDebounce, reportFailure: reason => LogJsonFailed(logger, reason)),
-            reportFailure: reason => LogWorkspaceStorageFailed(logger, reason));
+            reportFailure: reason => LogWorkspaceStorageFailed(logger, reason),
+            runs: runs);
         return workspace;
     }
 
@@ -127,4 +158,12 @@ internal static partial class Program
     [LoggerMessage(EventId = 8, EventName = "library.search_failed", Level = LogLevel.Warning,
         Message = "A library search failed: {Reason}")]
     private static partial void LogLibraryFailed(ILogger logger, string reason);
+
+    [LoggerMessage(EventId = 9, EventName = "run.failed", Level = LogLevel.Warning,
+        Message = "A run could not be completed or stored: {Reason}")]
+    private static partial void LogRunFailed(ILogger logger, string reason);
+
+    [LoggerMessage(EventId = 10, EventName = "command.failed", Level = LogLevel.Warning,
+        Message = "A command handler failed: {ExceptionType}")]
+    private static partial void LogCommandFailed(ILogger logger, string exceptionType);
 }

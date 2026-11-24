@@ -1,0 +1,60 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:commands="using:Codepad.Desktop.Commands"
+             x:Class="Codepad.Desktop.Commands.CommandPaletteView"
+             x:DataType="commands:CommandPaletteViewModel"
+             IsVisible="{Binding IsOpen}">
+
+  <!-- A dim layer covers the window. A click on it closes the palette. -->
+  <Grid Background="#66000000" PointerPressed="OnBackdropPressed">
+    <Border x:Name="Card" Classes="palette-card"
+            Width="520" MaxHeight="420"
+            HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,56,0,0"
+            PointerPressed="OnCardPressed"
+            AutomationProperties.Name="Command palette">
+      <DockPanel Margin="8">
+
+        <TextBox x:Name="SearchBox" DockPanel.Dock="Top"
+                 PlaceholderText="Type a command"
+                 Text="{Binding Query, Mode=TwoWay}"
+                 AutomationProperties.Name="Search commands" />
+
+        <TextBlock DockPanel.Dock="Bottom" Classes="notice" Margin="2,6,2,0" TextWrapping="Wrap"
+                   Text="{Binding StatusText}"
+                   AutomationProperties.Name="Command status"
+                   AutomationProperties.LiveSetting="Polite" />
+
+        <ListBox x:Name="CommandList" Margin="0,6,0,0"
+                 Focusable="False"
+                 ItemsSource="{Binding Items}"
+                 SelectedIndex="{Binding SelectedIndex, Mode=TwoWay}"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                 AutomationProperties.Name="Commands">
+          <ListBox.Styles>
+            <Style Selector="ListBoxItem">
+              <Setter Property="Focusable" Value="False" />
+            </Style>
+          </ListBox.Styles>
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="commands:PaletteItem">
+              <Grid ColumnDefinitions="*,Auto" AutomationProperties.Name="{Binding AccessibleName}">
+                <StackPanel Grid.Column="0" Spacing="1">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Classes="palette-label" Classes.disabled="{Binding !IsEnabled}" Text="{Binding Label}" />
+                    <TextBlock Classes="palette-state" Text="{Binding StateText}"
+                               IsVisible="{Binding StateText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                  </StackPanel>
+                  <TextBlock Classes="palette-reason" Text="{Binding ReasonText}" TextWrapping="Wrap"
+                             IsVisible="{Binding ReasonText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                </StackPanel>
+                <TextBlock Grid.Column="1" Classes="palette-key" Text="{Binding KeyHint}" VerticalAlignment="Center" />
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+
+      </DockPanel>
+    </Border>
+  </Grid>
+
+</UserControl>
