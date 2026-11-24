@@ -16,6 +16,11 @@
     <Deterministic>true</Deterministic>
   </PropertyGroup>
 
+  <!-- The release packages are self-contained for these two systems. Every project lists them, so the lock files hold the packages of both and a locked restore works also for a publish with a runtime ID. -->
+  <PropertyGroup>
+    <RuntimeIdentifiers>linux-x64;win-x64</RuntimeIdentifiers>
+  </PropertyGroup>
+
   <!-- Supply chain: lock files, and an audit of all packages, transitive included. -->
   <PropertyGroup>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>

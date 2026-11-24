@@ -16,6 +16,7 @@
     <ProjectReference Include="..\..\src\Codepad.Worker\Codepad.Worker.csproj" />
     <ProjectReference Include="..\..\src\Codepad.Cli\Codepad.Cli.csproj" />
     <ProjectReference Include="..\..\src\Codepad.Updater\Codepad.Updater.csproj" />
+    <ProjectReference Include="..\..\tools\Codepad.ReleaseTool\Codepad.ReleaseTool.csproj" />
     <ProjectReference Include="..\..\src\Codepad.Language\Codepad.Language.csproj" />
     <ProjectReference Include="..\Codepad.FaultWorker\Codepad.FaultWorker.csproj" />
   </ItemGroup>

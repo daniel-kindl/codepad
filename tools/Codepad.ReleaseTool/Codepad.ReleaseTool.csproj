@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The tool that the owner runs to build, check and sign a release. It never publishes anything and it is not part of the app. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net11.0</TargetFramework>
+    <AssemblyName>codepad-release</AssemblyName>
+    <RootNamespace>Codepad.ReleaseTool</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Codepad.Application\Codepad.Application.csproj" />
+    <ProjectReference Include="..\..\src\Codepad.Infrastructure\Codepad.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Codepad.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -17,6 +17,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The
 
 ### Added
 
+- Packaging and release preparation (#15): self-contained full-install archives for Linux x64 (`tar.gz`) and Windows x64 (`zip`) with the app, the `codepad` command line, the worker and the update helper,
+  built reproducibly (the same commit gives the same bytes). The `codepad-release` tool packs them, writes and signs the update manifest and checks everything with the code of the app. Install and uninstall
+  scripts for Linux (`install.sh`) and Windows (`install.ps1`) put CodePad in a per-user folder, keep your data and check the SHA-256 digest. The manual workflow `release-prepare` builds twice, installs in a clean home, runs C# and
+  JSON offline from the installed package and uploads the archives and an unsigned manifest. It never publishes. New docs: install (requirements, data, backup, offline, uninstall, limits), release (the steps for the owner)
+  and the v0.1 acceptance matrix. A packaged app starts its worker as its own program, so the machine needs no .NET.
+- The update fetch now stops a stalled body after 30 seconds, an archive entry loses the write bits of group and others, the update health file is written only on a start with `--post-update`, and an asset name cannot end in a dot.
 - In-app updates (#17): CodePad can check the official GitHub Releases for a newer stable version, once a day if you allow it, and
   on request with Check now in the settings. A notice shows the new version, the size and the release notes, and offers Download and
   install or Later. Nothing downloads or installs without your click, and the app never restarts by itself. The download shows its progress and can be

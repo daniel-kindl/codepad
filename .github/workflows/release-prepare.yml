@@ -1,0 +1,175 @@
+name: release-prepare
+
+# Builds the release packages and checks them. It does NOT tag, publish, sign or upload to a release.
+# The owner starts this workflow by hand. The owner signs the manifest and publishes the release with
+# the owner's own key and steps. See docs/release.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Stable version to build, for example 0.1.0
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: package (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-x64
+          - os: windows-latest
+            platform: win-x64
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET from global.json
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+
+      - name: Restore from the lock files and audit the packages
+        run: dotnet restore
+
+      - name: Build, check the format and run the tests
+        shell: bash
+        run: |
+          dotnet build --configuration Release --no-restore
+          dotnet format --verify-no-changes --no-restore
+          dotnet test --configuration Release --no-build
+
+      # The same inputs must give the same bytes. The package is built twice, and the two archives must be equal.
+      - name: Build the package twice
+        shell: bash
+        run: |
+          dotnet run --project tools/Codepad.ReleaseTool --configuration Release --no-restore -- package --platform "${{ matrix.platform }}" --version "$VERSION" --out dist/first
+          dotnet run --project tools/Codepad.ReleaseTool --configuration Release --no-restore -- package --platform "${{ matrix.platform }}" --version "$VERSION" --out dist/second
+          first="$(sha256sum dist/first/* | cut -d' ' -f1)"
+          second="$(sha256sum dist/second/* | cut -d' ' -f1)"
+          echo "first:  $first"
+          echo "second: $second"
+          test "$first" = "$second"
+          mkdir -p dist/final
+          cp dist/first/* dist/final/
+          rm -rf dist/first dist/second
+          dotnet run --project tools/Codepad.ReleaseTool --configuration Release --no-restore -- checksums --out dist/final/SHA256SUMS dist/final/codepad-*
+          cat dist/final/SHA256SUMS
+
+      # A clean install in a fresh home folder, with the network blocked, then a run of C# and JSON from the installed command.
+      - name: Install and run the package with no network (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          export HOME="$RUNNER_TEMP/home"
+          mkdir -p "$HOME"
+          bash packaging/install.sh dist/final/codepad-*.tar.gz
+          export PATH="$HOME/.local/bin:$PATH"
+          result="$(echo '1 + 1' | unshare -rn codepad run)"
+          echo "$result"
+          echo "$result" | grep -q '"outcome":"Success"'
+          echo "$result" | grep -q '"value":"2"'
+          json="$(echo '{ "a": [1, 2] }' | unshare -rn codepad json)"
+          echo "$json" | grep -q '"valid":true'
+          set +e
+          bad="$(echo '{ "a": ' | unshare -rn codepad json)"
+          code=$?
+          set -e
+          test "$code" = "20"
+          echo "$bad" | grep -q '"line":'
+          unshare -rn xvfb-run -a "$HOME/.local/share/CodePad/app/Codepad.Desktop" --smoke-test
+          bash packaging/uninstall.sh
+          test ! -e "$HOME/.local/share/CodePad/app"
+
+      - name: Install and run the package with no network (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:CODEPAD_INSTALL_DIR = Join-Path $env:RUNNER_TEMP 'CodePad'
+          $env:CODEPAD_SKIP_SHORTCUT = '1'
+          $env:CODEPAD_SKIP_PATH = '1'
+          $archive = (Get-ChildItem dist/final -Filter 'codepad-*.zip').FullName
+          ./packaging/install.ps1 -Archive $archive
+          $app = Join-Path $env:CODEPAD_INSTALL_DIR 'app'
+          Set-NetFirewallProfile -Profile Domain,Private,Public -Enabled True
+          New-NetFirewallRule -DisplayName "Block CodePad" -Direction Outbound -Program (Join-Path $app 'Codepad.Desktop.exe') -Action Block | Out-Null
+          New-NetFirewallRule -DisplayName "Block codepad cli" -Direction Outbound -Program (Join-Path $app 'codepad.exe') -Action Block | Out-Null
+          $result = '1 + 1' | & (Join-Path $app 'codepad.exe') run
+          Write-Output $result
+          if ($LASTEXITCODE -ne 0 -or $result -notmatch '"outcome":"Success"' -or $result -notmatch '"value":"2"') { throw 'The packaged command did not run C#.' }
+          $json = '{ "a": [1, 2] }' | & (Join-Path $app 'codepad.exe') json
+          if ($LASTEXITCODE -ne 0 -or $json -notmatch '"valid":true') { throw 'The packaged command did not format JSON.' }
+          & (Join-Path $app 'Codepad.Desktop.exe') --smoke-test
+          if ($LASTEXITCODE -ne 0) { throw 'The packaged app did not start.' }
+          ./packaging/uninstall.ps1
+
+      - name: Upload the packages and the checksums
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: package-${{ matrix.platform }}
+          path: dist/final/
+          if-no-files-found: error
+          retention-days: 14
+
+  manifest:
+    name: manifest and signature check
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET from global.json
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Download both packages
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: package-*
+          path: dist
+          merge-multiple: true
+
+      # The manifest is made from the real archives. A throwaway key (it lives only in this job and is never saved) proves that the
+      # signature code and the verification code agree. The real manifest is signed by the owner with the owner's key. This job never signs a release.
+      - name: Make the manifest and check the signing chain with a throwaway key
+        shell: bash
+        run: |
+          printf 'Release notes are written by the owner.\n' > notes.txt
+          tool="dotnet run --project tools/Codepad.ReleaseTool --configuration Release --no-restore --"
+          $tool manifest --version "$VERSION" --notes notes.txt --linux "dist/codepad-$VERSION-linux-x64.tar.gz" --windows "dist/codepad-$VERSION-win-x64.zip" --out dist/manifest.json
+          $tool keygen --out "$RUNNER_TEMP/throwaway"
+          $tool sign --key "$RUNNER_TEMP/throwaway/release-private.pem" --manifest dist/manifest.json
+          $tool verify --public-key "$RUNNER_TEMP/throwaway/release-public.pem" --manifest dist/manifest.json --archive "dist/codepad-$VERSION-linux-x64.tar.gz" --archive "dist/codepad-$VERSION-win-x64.zip"
+          rm -f dist/manifest.json.sig
+          cat dist/manifest.json
+
+      - name: Upload the unsigned manifest for the owner
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: manifest-unsigned
+          path: dist/manifest.json
+          if-no-files-found: error
+          retention-days: 14

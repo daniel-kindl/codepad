@@ -31,7 +31,16 @@ public sealed record WorkerLaunchOptions(string FileName, IReadOnlyList<string> 
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(baseDirectory);
         string assembly = Path.Combine(baseDirectory, "Codepad.Worker.dll");
-        return File.Exists(assembly) ? ForWorkerAssembly(assembly, workingDirectory) : null;
+        if (!File.Exists(assembly))
+        {
+            return null;
+        }
+
+        // A packaged app is self-contained: it has its own runtime and the machine may have no dotnet program. Then the worker starts as its own program.
+        string apphost = Path.Combine(baseDirectory, OperatingSystem.IsWindows() ? "Codepad.Worker.exe" : "Codepad.Worker");
+        return File.Exists(apphost) && IsSelfContained(Path.Combine(baseDirectory, "Codepad.Worker.runtimeconfig.json"))
+            ? new WorkerLaunchOptions(apphost, [], workingDirectory)
+            : ForWorkerAssembly(assembly, workingDirectory);
     }
 
     /// <summary>
@@ -40,6 +49,19 @@ public sealed record WorkerLaunchOptions(string FileName, IReadOnlyList<string> 
     /// <c>dotnet</c> on the search path.
     /// </summary>
     /// <returns>The path or the name of the host.</returns>
+    // A self-contained app lists "includedFrameworks" in its runtime configuration. A framework-dependent app lists "framework".
+    private static bool IsSelfContained(string runtimeConfigPath)
+    {
+        try
+        {
+            return File.Exists(runtimeConfigPath) && File.ReadAllText(runtimeConfigPath).Contains("\"includedFrameworks\"", StringComparison.Ordinal);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
     internal static string ResolveDotnetHost()
     {
         string hostName = OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet";

@@ -118,7 +118,9 @@ internal static partial class Program
             AppContext.BaseDirectory,
             updatesFolder,
             Path.GetFileName(processPath),
-            AppContext.BaseDirectory,
+
+            // A package has the helper as one self-contained program in its own folder. A developer build has it next to the app.
+            Directory.Exists(Path.Combine(AppContext.BaseDirectory, "updater")) ? Path.Combine(AppContext.BaseDirectory, "updater") : AppContext.BaseDirectory,
             installed.ToString(),
             Path.Combine(folders.DataFolder, DATABASE_FILE_NAME),
             database.BackupAsync,

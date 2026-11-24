@@ -40,8 +40,9 @@ internal static class UpdateBootstrap
     /// </summary>
     public static void WriteHealthFileIfRequested()
     {
+        // The helper starts the new version with --post-update. A normal start never writes the file, also when the variable is set by something else.
         string? path = Environment.GetEnvironmentVariable(HEALTH_VARIABLE);
-        if (string.IsNullOrEmpty(path))
+        if (string.IsNullOrEmpty(path) || !Environment.GetCommandLineArgs().Contains("--post-update", StringComparer.Ordinal) || !string.Equals(Path.GetFileName(path), "health.ok", StringComparison.Ordinal))
         {
             return;
         }

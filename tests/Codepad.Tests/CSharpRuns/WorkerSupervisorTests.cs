@@ -299,6 +299,38 @@ public sealed class WorkerSupervisorTests : IDisposable
     }
 
     [Fact]
+    public void ASelfContainedAppStartsTheWorkerAsItsOwnProgramBecauseTheMachineMayHaveNoDotnet()
+    {
+        string folder = Path.Combine(_harness.WorkingDirectory, "package");
+        Directory.CreateDirectory(folder);
+        string name = OperatingSystem.IsWindows() ? "Codepad.Worker.exe" : "Codepad.Worker";
+        File.WriteAllText(Path.Combine(folder, "Codepad.Worker.dll"), string.Empty);
+        File.WriteAllText(Path.Combine(folder, name), string.Empty);
+        File.WriteAllText(Path.Combine(folder, "Codepad.Worker.runtimeconfig.json"), "{ \"runtimeOptions\": { \"includedFrameworks\": [ { \"name\": \"Microsoft.NETCore.App\", \"version\": \"11.0.0\" } ] } }");
+
+        WorkerLaunchOptions? options = WorkerLaunchOptions.Locate(folder, _harness.WorkingDirectory);
+
+        Assert.NotNull(options);
+        Assert.Equal(Path.Combine(folder, name), options.FileName);
+        Assert.Empty(options.LeadingArguments);
+    }
+
+    [Fact]
+    public void AFrameworkDependentAppStartsTheWorkerWithTheDotnetHost()
+    {
+        string folder = Path.Combine(_harness.WorkingDirectory, "dev");
+        Directory.CreateDirectory(folder);
+        File.WriteAllText(Path.Combine(folder, "Codepad.Worker.dll"), string.Empty);
+        File.WriteAllText(Path.Combine(folder, OperatingSystem.IsWindows() ? "Codepad.Worker.exe" : "Codepad.Worker"), string.Empty);
+        File.WriteAllText(Path.Combine(folder, "Codepad.Worker.runtimeconfig.json"), "{ \"runtimeOptions\": { \"framework\": { \"name\": \"Microsoft.NETCore.App\", \"version\": \"11.0.0\" } } }");
+
+        WorkerLaunchOptions? options = WorkerLaunchOptions.Locate(folder, _harness.WorkingDirectory);
+
+        Assert.NotNull(options);
+        Assert.Equal(Path.Combine(folder, "Codepad.Worker.dll"), Assert.Single(options.LeadingArguments));
+    }
+
+    [Fact]
     public void LocateReturnsNullWhenTheFolderHasNoWorker()
     {
         Assert.Null(WorkerLaunchOptions.Locate(Path.GetTempPath(), _harness.WorkingDirectory));

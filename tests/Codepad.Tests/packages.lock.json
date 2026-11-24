@@ -269,6 +269,13 @@
           "Microsoft.Extensions.Logging.Console": "[11.0.0, )"
         }
       },
+      "codepad-release": {
+        "type": "Project",
+        "dependencies": {
+          "Codepad.Application": "[0.1.0, )",
+          "Codepad.Infrastructure": "[0.1.0, )"
+        }
+      },
       "codepad.application": {
         "type": "Project",
         "dependencies": {
@@ -367,6 +374,30 @@
           "Microsoft.Extensions.Logging": "11.0.0",
           "Microsoft.Extensions.Logging.Configuration": "11.0.0"
         }
+      }
+    },
+    "net11.0/linux-x64": {
+      "Microsoft.Win32.Registry": {
+        "type": "Transitive",
+        "resolved": "5.0.0",
+        "contentHash": "dDoKi0PnDz31yAyETfRntsLArTlVAVzUzCIvvEDsDsucrl33Dl8pIJG06ePTJTI3tGpeyHS9Cq7Foc/s4EeKcg=="
+      },
+      "SQLite": {
+        "type": "Transitive",
+        "resolved": "3.53.4",
+        "contentHash": "KN7jeWqgUPeBRe1FlcpZURzxomuKKEKHmBBQfg+Nx7NkY1LjKhzHvH+3ASkNvhayESE34nMBinL9CV21JfPRJw=="
+      }
+    },
+    "net11.0/win-x64": {
+      "Microsoft.Win32.Registry": {
+        "type": "Transitive",
+        "resolved": "5.0.0",
+        "contentHash": "dDoKi0PnDz31yAyETfRntsLArTlVAVzUzCIvvEDsDsucrl33Dl8pIJG06ePTJTI3tGpeyHS9Cq7Foc/s4EeKcg=="
+      },
+      "SQLite": {
+        "type": "Transitive",
+        "resolved": "3.53.4",
+        "contentHash": "KN7jeWqgUPeBRe1FlcpZURzxomuKKEKHmBBQfg+Nx7NkY1LjKhzHvH+3ASkNvhayESE34nMBinL9CV21JfPRJw=="
       }
     }
   }
