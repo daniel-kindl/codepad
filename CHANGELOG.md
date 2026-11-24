@@ -17,6 +17,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The
 
 ### Added
 
+- Command line (#19): the `codepad` program lets an AI agent or a script run C# snippets (`run`), validate and format JSON
+  (`json`), list, search, read, create and update experiments, and read the run history. It uses the same worker, limits,
+  result model and database as the desktop app, works offline and needs no account. The standard output holds one JSON document with
+  `schemaVersion` 1. Each run outcome has its own exit code (0, 10 to 14), and so have usage errors (2), invalid JSON
+  (20), a missing experiment (30), a revision conflict (31) and storage errors (40). Experiments and runs of the CLI show in the
+  desktop app and the reverse, and a write never overwrites a newer revision. The help text and `docs/cli.md` state that `run`
+  executes code with your permissions. New Application classes: `ExperimentCatalog` and `ExperimentRunService`.
 - Hardening (#14): a fault-injection worker (`tests/Codepad.FaultWorker`, not shipped) and tests for crash, hang, hang with a child
   process, slow response, cancel, error-stream flood, broken frames and impossible results. Each gives the right outcome and
   code, ends in time and leaves no process behind. Integration tests run huge, cyclic and slow values in the real worker and read the

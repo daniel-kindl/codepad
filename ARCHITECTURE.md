@@ -12,8 +12,7 @@ For the product scope, see [PRODUCT.md](PRODUCT.md).
 `Codepad.Desktop`. Each module has its own assembly. [#2] added the domain model. See
 [Domain model](#domain-model). [#3] added storage. See
 [Storage and retention](#storage-and-retention). [#4] added Contracts and Worker. See
-[C# script semantics](#c-script-semantics) and [Worker protocol](#worker-protocol). [#5] added the C# editor, [#6] added completion and [#7] added the result panel. See [C# editor](#c-editor). [#8] added run history, [#9] added live JSON and [#10] added tabs, [#11] added the library and [#12] added the command palette and Run, and [#13] added the settings. [#19] creates
-the CLI.
+[C# script semantics](#c-script-semantics) and [Worker protocol](#worker-protocol). [#5] added the C# editor, [#6] added completion and [#7] added the result panel. See [C# editor](#c-editor). [#8] added run history, [#9] added live JSON and [#10] added tabs, [#11] added the library and [#12] added the command palette and Run, and [#13] added the settings. [#19] added the CLI. See [Command line](#command-line).
 
 The Desktop app opens one window with a menu, a workspace region and a status region. The workspace
 holds a tab strip. Each tab is a C# experiment (editor, diagnostics and result panel) or a live JSON
@@ -539,6 +538,28 @@ the command. The CLI uses the same worker and the same limits. See [#19].
 
 The release documentation states this limit. See [#15].
 
+## Command line
+
+[#19] adds `codepad`, a separate executable (`src/Codepad.Cli`, assembly name `codepad`). The full reference is in
+[docs/cli.md](docs/cli.md).
+
+- **Second composition root.** The CLI references Application and Infrastructure. It does not reference Desktop, Language
+  or Avalonia, and nothing references it. `ModuleDependencyTests` checks this. It copies the worker next to itself the way Desktop does.
+- **Same use cases.** Run, run history, JSON evaluation, library search and experiment storage are the classes that Desktop
+  uses. The CLI adds `ExperimentCatalog` (create, read, update with a revision rule) and `ExperimentRunService` (store, then
+  run) to Application. The CLI copies no logic.
+- **Same limits.** The time limit and the history retention come from the settings file of the desktop app, and `--timeout` overrides the
+  time limit for one run. The result limits are `ResultPolicy.Default`.
+- **Trusted code.** The caller is trusted. Only `run` starts the worker, and only on request. `list`, `search`, `get`, `create`,
+  `update` and `history` never run code. The help text and the docs state the warning first.
+- **Output contract.** The standard output has one JSON document with `schemaVersion` 1. Logs go to the standard error at level
+  Warning. Exit codes map each outcome. Source, input and results are not logged.
+- **Shared database.** The CLI and a running desktop app open the same SQLite file in WAL mode. A writer waits up to 5 seconds. The
+  revision of an experiment is a compare and set: the CLI never overwrites a newer revision (exit code 31), and an autosave of
+  the desktop app that loses to a CLI write shows the "changed somewhere else" state and keeps its buffer. This closes V-14.
+- **Not in scope.** No server, daemon, MCP, remote access, sandbox, or new operation kinds. How `codepad` gets on the PATH is the job of the
+  packaging ([#15]) and the updater ([#17]).
+
 ## Reliability and known limitations
 
 [#14] adds fault tests for the boundaries that fail in real use. This section lists what the app promises and what it does not.
@@ -661,9 +682,9 @@ implementation. Record a durable decision as an ADR in `docs/adr/` when it passe
 | V-11 | Which signature scheme for the update manifest, and how does the owner keep the key? | [#15], [#17] |
 | V-12 | How does the update helper replace the app and roll back on each OS? | [#17] |
 | V-13 | Do Contracts use Domain to carry `ResultNode`? Does Worker use only Contracts? Partly resolved in [#2]: `ResultNode`, diagnostics and outcomes serialize with System.Text.Json and no package, so Contracts can carry them. Resolved in [#4]: Contracts use Domain. Worker uses only Contracts, Domain and Roslyn. | [#1], [#2], [#4] |
-| V-14 | How do the CLI and a running desktop app share one SQLite database safely? Partly resolved in [#3]: write-ahead logging allows readers during a write, and a writer waits up to 5 seconds, then reports `busy`. [#19] decides the rest. | [#3], [#19] |
-| V-15 | Is the CLI a separate executable or a mode of the desktop executable? How does it get on the PATH? | [#15], [#17], [#19] |
-| V-16 | Which command names and argument shapes does the CLI use? | [#19] |
+| V-14 | How do the CLI and a running desktop app share one SQLite database safely? Resolved in [#19]: one file in WAL mode, a writer waits up to 5 seconds, and the revision of an experiment stops a lost write. See [Command line](#command-line). | [#3], [#19] |
+| V-15 | Is the CLI a separate executable or a mode of the desktop executable? How does it get on the PATH? Partly resolved in [#19]: a separate executable, `codepad`. The PATH is the job of [#15] and [#17]. | [#15], [#17], [#19] |
+| V-16 | Which command names and argument shapes does the CLI use? Resolved in [#19]: `run`, `json`, `list`, `search`, `get`, `create`, `update`, `history`. See [docs/cli.md](docs/cli.md). | [#19] |
 
 [#1]: https://github.com/daniel-kindl/codepad/issues/1
 [#2]: https://github.com/daniel-kindl/codepad/issues/2
