@@ -206,7 +206,7 @@ public sealed class SettingsViewModelTests
         SettingsViewModel model = Create();
 
         Assert.False(model.CanCheckForUpdates);
-        Assert.Contains("later version", model.UpdateStatus, StringComparison.Ordinal);
+        Assert.Contains("not available in this build", model.UpdateStatus, StringComparison.Ordinal);
     }
 
     [Fact]

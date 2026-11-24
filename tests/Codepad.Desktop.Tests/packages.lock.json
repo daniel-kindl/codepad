@@ -457,6 +457,7 @@
           "Codepad.Application": "[0.1.0, )",
           "Codepad.Infrastructure": "[0.1.0, )",
           "Codepad.Language": "[0.1.0, )",
+          "Codepad.Updater": "[0.1.0, )",
           "Codepad.Worker": "[0.1.0, )",
           "Microsoft.Extensions.Logging": "[11.0.0, )",
           "Microsoft.Extensions.Logging.Console": "[11.0.0, )"
@@ -479,6 +480,9 @@
           "Codepad.Domain": "[0.1.0, )",
           "Microsoft.CodeAnalysis.CSharp": "[5.12.0, )"
         }
+      },
+      "codepad.updater": {
+        "type": "Project"
       },
       "codepad.worker": {
         "type": "Project",

@@ -14,6 +14,12 @@
     <ProjectReference Include="..\Codepad.Language\Codepad.Language.csproj" />
     <!-- The app starts the worker as a child process. The reference copies the worker and Roslyn next to the app. The app never loads the worker assembly. -->
     <ProjectReference Include="..\Codepad.Worker\Codepad.Worker.csproj" />
+    <!-- The update helper swaps the installation after the app exits. The app copies it to a folder outside the installation and starts it there. -->
+    <ProjectReference Include="..\Codepad.Updater\Codepad.Updater.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Updates\UpdatePublicKey.pem" LogicalName="Codepad.Desktop.Updates.UpdatePublicKey.pem" />
   </ItemGroup>
 
   <ItemGroup>

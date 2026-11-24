@@ -8,6 +8,7 @@
     <Project Path="src/Codepad.Desktop/Codepad.Desktop.csproj" />
     <Project Path="src/Codepad.Worker/Codepad.Worker.csproj" />
     <Project Path="src/Codepad.Cli/Codepad.Cli.csproj" />
+    <Project Path="src/Codepad.Updater/Codepad.Updater.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Codepad.Tests/Codepad.Tests.csproj" />

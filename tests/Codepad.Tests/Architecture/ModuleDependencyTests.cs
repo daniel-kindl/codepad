@@ -76,6 +76,15 @@ public sealed class ModuleDependencyTests
     }
 
     [Fact]
+    public void TheUpdateHelperReferencesOnlyTheBaseClassLibrary()
+    {
+        // The helper runs from a copy outside the installation, so it must need no other CodePad file.
+        IEnumerable<string> references = Assembly.Load("Codepad.Updater").GetReferencedAssemblies().Select(reference => reference.Name ?? string.Empty);
+
+        Assert.All(references, name => Assert.True(name == "System" || name.StartsWith("System.", StringComparison.Ordinal) || name == "netstandard" || name == "mscorlib" || name == "Microsoft.Win32.Primitives", $"Codepad.Updater references {name}."));
+    }
+
+    [Fact]
     public void ContractsReferenceOnlyDomainAndTheBaseClassLibrary()
     {
         // An allowlist: the wire messages carry Domain types and need no other package.

@@ -94,6 +94,43 @@ public sealed class SqliteDatabase : IDataStoreInitializer
     /// <returns>An open connection.</returns>
     internal SqliteConnection OpenConnection() => Open(applyConfigure: true);
 
+    /// <summary>
+    /// Writes a consistent copy of the database to a new file. It uses <c>VACUUM INTO</c>, so the copy has all committed data, also
+    /// from the write-ahead log, and it works while the app runs. The copy keeps the schema version. A rollback of an update puts it back.
+    /// </summary>
+    /// <param name="backupPath">The new file. An existing file is replaced.</param>
+    /// <returns>A task that ends when the copy is whole.</returns>
+    /// <exception cref="ExperimentStorageException">The copy failed. The reason is safe to log.</exception>
+    public Task BackupAsync(string backupPath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(backupPath);
+        return Task.Run(() =>
+        {
+            try
+            {
+                string temporary = backupPath + ".tmp";
+                File.Delete(temporary);
+                using (SqliteConnection connection = OpenConnection())
+                {
+                    using SqliteCommand command = connection.CreateCommand();
+                    command.CommandText = "VACUUM INTO $path;";
+                    command.Parameters.AddWithValue("$path", temporary);
+                    command.ExecuteNonQuery();
+                }
+
+                File.Move(temporary, backupPath, overwrite: true);
+            }
+            catch (SqliteException exception)
+            {
+                throw SqliteFailure.From(exception);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                throw new ExperimentStorageException("io_error", exception);
+            }
+        });
+    }
+
     private static void Apply(SqliteConnection connection, Migration step)
     {
         // IMMEDIATE takes the write lock first. A second CodePad process that starts at the same time waits here,

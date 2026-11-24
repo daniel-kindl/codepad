@@ -3,7 +3,9 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using Codepad.Application.Settings;
+using Codepad.Desktop.Settings;
 using Codepad.Desktop.Shell;
+using Codepad.Desktop.Updates;
 
 namespace Codepad.Desktop;
 
@@ -65,6 +67,14 @@ public sealed partial class App : Avalonia.Application
             window.Opened += (_, _) =>
             {
                 options.OnOpened();
+
+                // The new version proves that it started. The update helper waits for this file, and without it the helper goes back.
+                UpdateBootstrap.WriteHealthFileIfRequested();
+                if (!options.ExitAfterOpen && options.ViewModel.Updates is UpdateViewModel updates && options.ViewModel.Settings is SettingsViewModel settingsModel)
+                {
+                    _ = updates.RunStartupAsync(() => settingsModel.UpdateChecksEnabled, TimeSpan.FromSeconds(8));
+                }
+
                 if (options.ExitAfterOpen)
                 {
                     // Background priority lets the first layout and render finish before the exit.

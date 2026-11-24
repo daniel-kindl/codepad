@@ -17,6 +17,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The
 
 ### Added
 
+- In-app updates (#17): CodePad can check the official GitHub Releases for a newer stable version, once a day if you allow it, and
+  on request with Check now in the settings. A notice shows the new version, the size and the release notes, and offers Download and
+  install or Later. Nothing downloads or installs without your click, and the app never restarts by itself. The download shows its progress and can be
+  canceled. CodePad verifies a signed manifest (ECDSA P-256), the SHA-256 digest and the size, unpacks the update next to the installation,
+  saves your work, makes a copy of the database and hands the swap to a helper that runs after CodePad exits. If the new version does not start,
+  the helper puts the old version and the database copy back, and the next start says so. Pre-releases, older versions, wrong platforms, bad signatures, bad digests and untrusted
+  redirects are rejected. Offline use and GitHub errors never block the app. The app has no signing key yet, so it installs no update until the owner
+  adds the public key. See docs/updates.md.
 - Command line (#19): the `codepad` program lets an AI agent or a script run C# snippets (`run`), validate and format JSON
   (`json`), list, search, read, create and update experiments, and read the run history. It uses the same worker, limits,
   result model and database as the desktop app, works offline and needs no account. The standard output holds one JSON document with

@@ -3,7 +3,7 @@
              xmlns:commands="using:Codepad.Desktop.Commands"
              x:Class="Codepad.Desktop.Commands.CommandPaletteView"
              x:DataType="commands:CommandPaletteViewModel"
-             IsVisible="{Binding IsOpen}">
+             IsVisible="{Binding IsOpen, FallbackValue=False}">
 
   <!-- A dim layer covers the window. A click on it closes the palette. -->
   <Grid Background="#66000000" PointerPressed="OnBackdropPressed">

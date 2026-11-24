@@ -94,6 +94,8 @@
 
         <StackPanel Spacing="8">
           <TextBlock Classes="settings-heading" Text="Updates" />
+          <TextBlock Text="{Binding VersionText}" IsVisible="{Binding VersionText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                     AutomationProperties.Name="Installed version" />
           <CheckBox Content="Check for updates (at most once a day)" IsChecked="{Binding UpdateChecksEnabled, Mode=TwoWay}"
                     AutomationProperties.Name="Check for updates" />
           <StackPanel Spacing="6">
