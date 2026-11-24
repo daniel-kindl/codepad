@@ -46,7 +46,7 @@ public sealed class SqliteRunHistoryRepository : IRunHistoryRepository
     private static readonly JsonSerializerOptions s_json = JsonSerializerOptions.Web;
 
     private readonly SqliteDatabase database;
-    private readonly int retention;
+    private readonly Func<int> retention;
 
     /// <summary>Initializes a new instance of the <see cref="SqliteRunHistoryRepository"/> class.</summary>
     /// <param name="database">The prepared database.</param>
@@ -58,7 +58,18 @@ public sealed class SqliteRunHistoryRepository : IRunHistoryRepository
         int keep = retention ?? DefaultRetention;
         ArgumentOutOfRangeException.ThrowIfLessThan(keep, 1);
         this.database = database;
-        this.retention = keep;
+        this.retention = () => keep;
+    }
+
+    /// <summary>Initializes a new instance of the <see cref="SqliteRunHistoryRepository"/> class with a retention that can change.</summary>
+    /// <param name="database">The prepared database.</param>
+    /// <param name="retention">Gives the number of runs to keep for each experiment. The repository calls it at each insert. A value below 1 counts as 1.</param>
+    public SqliteRunHistoryRepository(SqliteDatabase database, Func<int> retention)
+    {
+        ArgumentNullException.ThrowIfNull(database);
+        ArgumentNullException.ThrowIfNull(retention);
+        this.database = database;
+        this.retention = retention;
     }
 
     /// <inheritdoc />
@@ -101,7 +112,7 @@ public sealed class SqliteRunHistoryRepository : IRunHistoryRepository
                     trim.Transaction = transaction;
                     trim.CommandText = TRIM_SQL;
                     trim.Parameters.AddWithValue("$experiment_id", request.ExperimentId.Value.ToString());
-                    trim.Parameters.AddWithValue("$retention", retention);
+                    trim.Parameters.AddWithValue("$retention", Math.Max(1, retention()));
                     trim.ExecuteNonQuery();
                 }
 
@@ -110,6 +121,21 @@ public sealed class SqliteRunHistoryRepository : IRunHistoryRepository
             },
             cancellationToken);
     }
+
+    /// <inheritdoc />
+    public Task<int> ClearAsync(CancellationToken cancellationToken = default) => RunAsync(
+        () =>
+        {
+            using SqliteConnection connection = database.OpenConnection();
+            using SqliteTransaction transaction = connection.BeginTransaction();
+            using SqliteCommand command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = "DELETE FROM execution_history;";
+            int deleted = command.ExecuteNonQuery();
+            transaction.Commit();
+            return deleted;
+        },
+        cancellationToken);
 
     /// <inheritdoc />
     public Task<IReadOnlyList<RunSummary>> ListAsync(ExperimentId experimentId, CancellationToken cancellationToken = default)

@@ -96,6 +96,25 @@
     <Setter Property="VerticalAlignment" Value="Center" />
   </Style>
 
+  <!-- The settings window. -->
+
+  <Style Selector="TextBlock.settings-heading">
+    <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+    <Setter Property="FontSize" Value="{StaticResource ShellTitleFontSize}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <Style Selector="TextBlock.settings-key">
+    <Setter Property="FontFamily" Value="{StaticResource EditorFontFamily}" />
+    <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+  </Style>
+
+  <Style Selector="TextBlock.settings-error">
+    <Setter Property="Foreground" Value="{DynamicResource ShellWarningTextBrush}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+
   <!-- The command palette. -->
 
   <Style Selector="Border.palette-card">

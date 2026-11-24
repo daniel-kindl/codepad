@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using Avalonia.Threading;
 using Codepad.Application.Editing;
+using Codepad.Desktop.Settings;
 using Codepad.Domain.Results;
 
 namespace Codepad.Desktop.Editor;
@@ -47,12 +48,14 @@ public sealed class CSharpEditorViewModel : INotifyPropertyChanged, IDisposable
     /// <param name="reportFailure">Receives the exception type name when the analysis fails. Null ignores it.</param>
     /// <param name="completion">Suggests code. Null turns the suggestions off.</param>
     /// <param name="reportCompletionFailure">Receives the exception type name when a completion request fails. Null ignores it.</param>
-    public CSharpEditorViewModel(ICSharpHighlighter highlighter, ICSharpAnalyzer analyzer, TimeProvider timeProvider, TimeSpan debounce, Action<Action>? post = null, Action<string>? reportFailure = null, ICSharpCompletionProvider? completion = null, Action<string>? reportCompletionFailure = null)
+    /// <param name="preferences">The font size and the indentation width. The editor view applies them at once. Null uses the defaults.</param>
+    public CSharpEditorViewModel(ICSharpHighlighter highlighter, ICSharpAnalyzer analyzer, TimeProvider timeProvider, TimeSpan debounce, Action<Action>? post = null, Action<string>? reportFailure = null, ICSharpCompletionProvider? completion = null, Action<string>? reportCompletionFailure = null, EditorPreferences? preferences = null)
     {
         ArgumentNullException.ThrowIfNull(highlighter);
         ArgumentNullException.ThrowIfNull(analyzer);
         ArgumentNullException.ThrowIfNull(timeProvider);
         Highlighter = highlighter;
+        Preferences = preferences ?? new EditorPreferences();
         this.analyzer = analyzer;
         this.timeProvider = timeProvider;
         this.debounce = debounce;
@@ -71,6 +74,9 @@ public sealed class CSharpEditorViewModel : INotifyPropertyChanged, IDisposable
 
     /// <summary>Raised when <see cref="Load"/> replaces the document. The view shows the new text.</summary>
     public event Action<string>? DocumentLoaded;
+
+    /// <summary>Gets the font size and the indentation width that the view applies.</summary>
+    public EditorPreferences Preferences { get; }
 
     /// <summary>Gets the syntax highlighter that the view uses.</summary>
     public ICSharpHighlighter Highlighter { get; }

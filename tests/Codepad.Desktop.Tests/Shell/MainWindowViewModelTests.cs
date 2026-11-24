@@ -43,6 +43,16 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void RecoveredPreferencesShowAWarningWithoutTheFieldNames()
+    {
+        MainWindowViewModel viewModel = new MainWindowViewModel([new StartupNotice(StartupNoticeKind.PreferencesRecovered, "editorFontSize,theme")]);
+
+        Assert.Equal(MainWindowViewModel.PREFERENCES_RECOVERED_TEXT, viewModel.StatusText);
+        Assert.True(viewModel.HasWarning);
+        Assert.DoesNotContain("editorFontSize", viewModel.StatusText, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void TwoProblemsShowBothMessagesInOrder()
     {
         MainWindowViewModel viewModel = new MainWindowViewModel(

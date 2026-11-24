@@ -12,7 +12,7 @@ For the product scope, see [PRODUCT.md](PRODUCT.md).
 `Codepad.Desktop`. Each module has its own assembly. [#2] added the domain model. See
 [Domain model](#domain-model). [#3] added storage. See
 [Storage and retention](#storage-and-retention). [#4] added Contracts and Worker. See
-[C# script semantics](#c-script-semantics) and [Worker protocol](#worker-protocol). [#5] added the C# editor, [#6] added completion and [#7] added the result panel. See [C# editor](#c-editor). [#8] added run history, [#9] added live JSON and [#10] added tabs, [#11] added the library and [#12] added the command palette and Run. [#19] creates
+[C# script semantics](#c-script-semantics) and [Worker protocol](#worker-protocol). [#5] added the C# editor, [#6] added completion and [#7] added the result panel. See [C# editor](#c-editor). [#8] added run history, [#9] added live JSON and [#10] added tabs, [#11] added the library and [#12] added the command palette and Run, and [#13] added the settings. [#19] creates
 the CLI.
 
 The Desktop app opens one window with a menu, a workspace region and a status region. The workspace
@@ -414,10 +414,10 @@ failure without a response is a Warning. The supervisor never logs source, outpu
 - **Disabled commands.** The palette lists a command that cannot run, with the word "Unavailable" and the reason. A
   disabled command never runs. The palette reads the availability again when the user chooses a command, so a
   command that became unavailable does not run. A chosen command runs once: the palette closes first.
-  Settings is listed as unavailable until [#13].
+  Settings opens the settings window ([#13]).
 - **Keys.** Ctrl+K opens the palette from the main window. The search box has the focus. Up, Down, PageUp and
   PageDown move the selection, Enter runs the command and Escape closes it. A click on a row runs it. A click outside closes it.
-  Ctrl+P opens the library search. Ctrl+Enter runs the active C# tab. [#13] will make the keys settings.
+  Ctrl+P opens the library search. Ctrl+Enter runs the active C# tab. [#13] documents the keys and keeps them fixed.
 - **Focus.** The window remembers the focused control when the palette opens. It gives the focus back when the palette
   closes, before the command runs. A command that moves the focus, for example Open library, then wins.
 - **Run.** `RunController` runs a C# tab only on an explicit request: Run command, Ctrl+Enter or the Run menu. It takes
@@ -428,6 +428,60 @@ failure without a response is a Warning. The supervisor never logs source, outpu
 - **The worker.** `Program` looks for `Codepad.Worker.dll` next to the app. The worker uses one working folder,
   `runs`, in the data folder. When the program is missing, Run is unavailable and says so.
 - **Not in scope.** Settings (#13), the CLI (#19) and the hardening of worker failures (#14).
+
+## Settings and shortcuts
+
+[#13] adds the settings and fixes the shortcuts of v0.1.
+
+- **What can change.** `UserSettings` has the theme (follow the system, light, dark), the editor font size, the
+  indentation width, the run timeout, the history retention and the update-check preference. The ranges are in
+  `UserSettingsRules`. The defaults are: follow the system, 14 points, 4 spaces, 10 seconds, 100 saved runs for each
+  experiment, update checks on.
+
+  | Setting | Allowed values | Default |
+  | --- | --- | --- |
+  | Editor font size | 8 to 48 points | 14 |
+  | Indentation width | 1 to 8 spaces | 4 |
+  | Run timeout | 1 to 600 seconds | 10 |
+  | Saved runs for each experiment | 1 to 1,000 | 100 |
+
+- **Where they are stored.** In the section `preferences` of `settings.json` in the config folder, next to the
+  hand-written `logLevel`. A save writes a new file and replaces the old one, and keeps all other content. The
+  section has a `version` (1). It has no path and no text of the user. `JsonUserSettingsStore` reads and writes it.
+- **Bad data.** A value of the wrong type or outside its range falls back to the default for that value and adds a
+  warning. A damaged file, a section that is not an object or a missing version gives the defaults. A section from a newer
+  version gives the defaults and is not changed until the user changes a setting. A damaged file is copied to
+  `settings.json.invalid` before the app writes a new one. The status line says that some preferences were not valid. It never
+  names a value.
+- **Live changes.** `SettingsViewModel` validates each change. A valid change applies at once and is saved. An invalid
+  one shows a message and changes nothing. The theme applies through `App.ApplyTheme`. The font size and the indentation
+  width go through `EditorPreferences`, which each open editor listens to. The indentation width applies to the C#
+  editor. A failed save keeps the change for this session and says so.
+- **New runs only.** `RunHistoryService` asks for the policy of a run when the run starts
+  (`UserSettings.CSharpPolicy`). A run that goes keeps its limit, and a rerun keeps the policy of its saved snapshot. The
+  history retention is read at each insert, so a lower number removes the older runs at the next run.
+- **Clear history.** The settings window asks for a confirmation that says what stays. Cancel is the default. The delete
+  removes rows of `execution_history` only. It never touches `experiments`.
+- **Updates.** The window keeps the update-check preference. The Check now action needs `IUpdateCheckHandoff`. [#17]
+  provides it. Until then the button is disabled and says so. The settings never download, install or check at startup.
+- **Shortcuts.** They are fixed. They use Ctrl on Linux and Windows. The window handles them before the editor sees the
+  key. None of them is an editing shortcut: copy, paste, undo, select all and the cursor keys stay with the text control.
+  `KeyContract` is the list.
+
+  | Keys | Action |
+  | --- | --- |
+  | Ctrl+N | New C# experiment |
+  | Ctrl+Enter | Run the active C# experiment |
+  | Ctrl+K | Open the command palette |
+  | Ctrl+P | Open the library search |
+  | Ctrl+Tab, Ctrl+Shift+Tab | Next tab, previous tab |
+  | Ctrl+W | Close the active tab |
+  | Ctrl+Shift+PageUp, Ctrl+Shift+PageDown | Move the active tab |
+  | Ctrl+, | Open the settings |
+  | F8 | Next problem in the C# editor |
+  | Escape | Close the palette, a dialog or the completion list |
+
+- **Not in scope.** No shortcut editor, no account settings, no sync. The log level stays a hand-written file value.
 
 ## Run history
 

@@ -15,6 +15,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The
 
 ### Added
 
+- Settings and shortcuts (#13): a settings window (File menu, Ctrl+, or the palette) changes the theme, the editor font
+  size, the indentation width, the run timeout and the number of saved runs for each experiment, and keeps the
+  update-check preference. A valid change applies at once and is saved in `settings.json`. An invalid number is refused
+  with a message. A bad stored value falls back to its default and the status line says so. A new timeout applies to
+  new runs only. "Clear run history…" asks for a confirmation and deletes runs only, never experiments. The window lists the
+  shortcuts. Ctrl+N creates a C# experiment and Ctrl+, opens the settings. The Check now button for updates stays disabled until the updater (#17) exists.
 - Command palette and Run (#12): Ctrl+K opens a searchable palette with New C# experiment, New JSON experiment, Run
   C#, Cancel run, Open library, Copy result, Next and Previous tab, Close tab, Settings and Switch to each open tab. Search
   ignores case and finds abbreviations. A command that cannot run is listed with the reason and never runs. Escape

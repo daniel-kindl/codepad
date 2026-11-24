@@ -14,14 +14,15 @@ public static class BuiltInCommands
     /// <param name="workspace">The open tabs.</param>
     /// <param name="openLibrary">Shows the library and moves the focus to its search box. Null when the app has no library.</param>
     /// <param name="copyResult">Copies the result of the active tab to the clipboard.</param>
+    /// <param name="openSettings">Opens the settings window. Null when the app has no settings.</param>
     /// <returns>The commands in the order that the palette lists them.</returns>
-    public static IReadOnlyList<AppCommand> Create(WorkspaceViewModel workspace, Action? openLibrary, Func<Task> copyResult)
+    public static IReadOnlyList<AppCommand> Create(WorkspaceViewModel workspace, Action? openLibrary, Func<Task> copyResult, Action? openSettings = null)
     {
         ArgumentNullException.ThrowIfNull(workspace);
         ArgumentNullException.ThrowIfNull(copyResult);
         List<AppCommand> commands =
         [
-            new AppCommand("experiment.new.csharp", "New C# experiment", () => CommandAvailability.Available, () => workspace.NewExperimentAsync(OperationKind.CSharp), null, "create add"),
+            new AppCommand("experiment.new.csharp", "New C# experiment", () => CommandAvailability.Available, () => workspace.NewExperimentAsync(OperationKind.CSharp), "Ctrl+N", "create add"),
             new AppCommand("experiment.new.json", "New JSON experiment", () => CommandAvailability.Available, () => workspace.NewExperimentAsync(OperationKind.Json), null, "create add"),
             new AppCommand("run.csharp", "Run C#", () => RunAvailability(workspace), () => RunActiveAsync(workspace), "Ctrl+Enter", "execute start"),
             new AppCommand("run.cancel", "Cancel run", () => workspace.Runs?.CancelAvailability() ?? new CommandAvailability(false, "No run is in progress."), () => { workspace.Runs?.Cancel(); return Task.CompletedTask; }, null, "stop"),
@@ -30,7 +31,7 @@ public static class BuiltInCommands
             new AppCommand("tab.next", "Next tab", () => TabsAvailability(workspace), () => { workspace.Next(); return Task.CompletedTask; }, "Ctrl+Tab"),
             new AppCommand("tab.previous", "Previous tab", () => TabsAvailability(workspace), () => { workspace.Previous(); return Task.CompletedTask; }, "Ctrl+Shift+Tab"),
             new AppCommand("tab.close", "Close tab", () => workspace.ActiveTab is null ? new CommandAvailability(false, "No tab is open.") : CommandAvailability.Available, () => CloseActiveAsync(workspace), "Ctrl+W", "remove"),
-            new AppCommand("settings.open", "Settings", () => new CommandAvailability(false, "Settings are not available yet."), () => Task.CompletedTask),
+            new AppCommand("settings.open", "Settings", () => openSettings is null ? new CommandAvailability(false, "Settings are not available yet.") : CommandAvailability.Available, () => { openSettings?.Invoke(); return Task.CompletedTask; }, "Ctrl+,", "preferences options theme font timeout history"),
         ];
 
         foreach (ExperimentTabViewModel tab in workspace.Tabs.Where(tab => !ReferenceEquals(tab, workspace.ActiveTab)))

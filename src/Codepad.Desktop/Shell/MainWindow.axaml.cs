@@ -5,6 +5,7 @@ using Avalonia.Input.Platform;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Codepad.Desktop.Commands;
+using Codepad.Desktop.Settings;
 using Codepad.Desktop.Workspace;
 using Codepad.Domain.Operations;
 
@@ -49,7 +50,7 @@ public sealed partial class MainWindow : Window
         if (DataContext is MainWindowViewModel { Workspace: WorkspaceViewModel workspace } model)
         {
             palette = new CommandPaletteViewModel(
-                () => BuiltInCommands.Create(workspace, model.HasLibrary ? ShowLibrary : null, CopyResultAsync),
+                () => BuiltInCommands.Create(workspace, model.HasLibrary ? ShowLibrary : null, CopyResultAsync, model.HasSettings ? ShowSettings : null),
                 model.ReportCommandFailure);
             palette.Opened += OnPaletteOpened;
             palette.Closed += OnPaletteClosed;
@@ -77,6 +78,19 @@ public sealed partial class MainWindow : Window
         else
         {
             Focus();
+        }
+    }
+
+    /// <summary>Gets or sets how the window shows the settings. Null shows a modal dialog. Tests set it to see the dialog.</summary>
+    internal Func<SettingsWindow, Task>? SettingsRunner { get; set; }
+
+    private async void ShowSettings()
+    {
+        if (DataContext is MainWindowViewModel { Settings: SettingsViewModel settings })
+        {
+            // The dialog is modal, so a shortcut in this window cannot start a second one.
+            SettingsWindow dialog = new SettingsWindow { DataContext = settings, RequestedThemeVariant = RequestedThemeVariant };
+            await (SettingsRunner?.Invoke(dialog) ?? dialog.ShowDialog(this));
         }
     }
 
@@ -180,6 +194,14 @@ public sealed partial class MainWindow : Window
 
         switch (e.Key)
         {
+            case Key.N when !shift:
+                e.Handled = true;
+                await workspace.NewExperimentAsync(OperationKind.CSharp);
+                break;
+            case Key.OemComma when !shift && DataContext is MainWindowViewModel { HasSettings: true }:
+                e.Handled = true;
+                ShowSettings();
+                break;
             case Key.P when !shift && DataContext is MainWindowViewModel { HasLibrary: true }:
                 e.Handled = true;
                 ShowLibrary();
@@ -245,6 +267,8 @@ public sealed partial class MainWindow : Window
             await workspace.CloseAsync(tab);
         }
     }
+
+    private void OnSettingsClick(object? sender, RoutedEventArgs e) => ShowSettings();
 
     private void OnOpenPaletteClick(object? sender, RoutedEventArgs e) => palette?.Open();
 
