@@ -102,16 +102,8 @@ public sealed class ExperimentCatalog(IExperimentRepository repository, TimeProv
             return new CatalogUpdate(CatalogStatus.Conflict, stored);
         }
 
-        Experiment changed = stored;
-        if (normalized is not null)
-        {
-            changed = changed.WithTitle(normalized, clock.GetUtcNow());
-        }
-
-        if (source is not null)
-        {
-            changed = changed.WithSource(source, clock.GetUtcNow());
-        }
+        // One step, one revision. A second writer that saved N+1 after our read makes our N+1 stale.
+        Experiment changed = stored.WithChanges(normalized, source, clock.GetUtcNow());
 
         if (changed.Revision == stored.Revision)
         {

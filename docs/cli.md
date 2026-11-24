@@ -40,7 +40,7 @@ Without `--experiment`, the snippet comes from `--file`, or from the standard in
 new experiment. With `--experiment`, it runs the stored source, or the source from `--file` after it stores that source.
 `--expected-revision` makes the update safe: a different stored revision gives exit code 31 and writes nothing. The time
 limit is `--timeout` (1 to 600 seconds), or the run timeout of the settings of CodePad (10 seconds by default). The result
-and the output have the same limits as in the desktop app. A snippet can be up to 2,000,000 characters.
+and the output have the same limits as in the desktop app. A snippet can be up to 2,000,000 characters. The command stores the experiment before it runs it, so an experiment stays in the library also when the run fails or times out.
 
 ```bash
 echo '1 + 1' | codepad run

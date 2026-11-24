@@ -145,10 +145,16 @@ internal static class CliApp
 
         // A global option after the command works too: split it out of the rest.
         List<string> remaining = [];
+        bool afterSeparator = false;
         for (int position = 0; position < rest.Count; position++)
         {
             string token = rest[position];
-            if (token is "--pretty" or "--data-dir" or "--config-dir")
+            if (token == "--")
+            {
+                afterSeparator = true;
+            }
+
+            if (!afterSeparator && token is "--pretty" or "--data-dir" or "--config-dir")
             {
                 before.Add(token);
                 if (token != "--pretty" && position + 1 < rest.Count)

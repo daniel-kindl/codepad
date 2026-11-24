@@ -405,6 +405,48 @@ public sealed class CliCommandTests : IDisposable
         Assert.NotEqual(string.Empty, result.Stderr);
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task RunWithABadTitleIsAUsageErrorNotAnInternalError(string title)
+    {
+        CliResult result = await cli.RunAsync(["run", "--title", title], "1");
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Equal("usage", result.Json.GetProperty("error").GetProperty("code").GetString());
+        Assert.Empty((await cli.RunAsync(["list"])).Json.GetProperty("items").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task RunWithATitleThatIsTooLongIsAUsageError()
+    {
+        CliResult result = await cli.RunAsync(["run", "--title", new string('x', 101)], "1");
+
+        Assert.Equal(2, result.ExitCode);
+    }
+
+    [Fact]
+    public async Task AGlobalLookingWordAfterTheSeparatorIsSearchText()
+    {
+        await cli.RunAsync(["create", "--kind", "csharp", "--title", "has --pretty inside"], "1");
+
+        CliResult result = await cli.RunAsync(["search", "--", "--pretty"]);
+
+        Assert.Single(result.Json.GetProperty("items").EnumerateArray());
+        Assert.DoesNotContain("\n  ", result.Stdout, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task UpdateOfTitleAndSourceTogetherMovesTheRevisionByOne()
+    {
+        CliResult created = await cli.RunAsync(["create", "--kind", "csharp", "--title", "T"], "1");
+        string id = created.Json.GetProperty("experiment").GetProperty("id").GetString()!;
+
+        CliResult updated = await cli.RunAsync(["update", id, "--title", "New", "--file", "-"], "2");
+
+        Assert.Equal(2, updated.Json.GetProperty("experiment").GetProperty("revision").GetInt64());
+    }
+
     [Fact]
     public async Task RunWithoutAnyInputDoesNotWaitOnATerminal()
     {

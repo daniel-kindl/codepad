@@ -205,4 +205,18 @@ public sealed class ExperimentTests
 
     private static Experiment NewExperiment() =>
         Experiment.Create(new ExperimentId(new Guid("0193a0c0-0000-7000-8000-000000000001")), OperationKind.CSharp, "Sum", "1 + 2", s_created);
+
+    [Fact]
+    public void WithChangesRaisesTheRevisionOnceForTwoChangesAndNotAtAllForNone()
+    {
+        Experiment original = Experiment.Create(ExperimentId.New(), OperationKind.CSharp, "t", "1", s_edited);
+
+        Experiment both = original.WithChanges("new", "2", s_edited.AddMinutes(1));
+
+        Assert.Equal(original.Revision + 1, both.Revision);
+        Assert.Equal("new", both.Title);
+        Assert.Equal("2", both.Source);
+        Assert.Same(original, original.WithChanges(null, null, s_edited));
+        Assert.Same(original, original.WithChanges("t", "1", s_edited));
+    }
 }

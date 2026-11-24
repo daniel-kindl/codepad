@@ -37,6 +37,19 @@ internal static class Commands
             throw new UsageException("The run command takes no words. Use --file PATH, or pipe the snippet to the standard input.");
         }
 
+        string? runTitle = args.Value("--title");
+        if (runTitle is not null)
+        {
+            try
+            {
+                _ = ExperimentRules.NormalizeTitle(runTitle);
+            }
+            catch (ArgumentException exception)
+            {
+                throw new UsageException(exception.Message);
+            }
+        }
+
         string? experimentText = args.Value("--experiment");
         long? expectedRevision = args.Number("--expected-revision", 1, long.MaxValue);
         int? timeout = (int?)args.Number("--timeout", UserSettingsRules.Timeout.Min, UserSettingsRules.Timeout.Max);
@@ -65,7 +78,7 @@ internal static class Commands
         }
 
         ExperimentRunResult result = existing is null
-            ? await runs.RunNewAsync(args.Value("--title") ?? DefaultTitle(environment.Clock), source!, cancellationToken).ConfigureAwait(false)
+            ? await runs.RunNewAsync(runTitle ?? DefaultTitle(environment.Clock), source!, cancellationToken).ConfigureAwait(false)
             : await runs.RunExistingAsync(existing, source, expectedRevision, cancellationToken).ConfigureAwait(false);
 
         return result.Status switch

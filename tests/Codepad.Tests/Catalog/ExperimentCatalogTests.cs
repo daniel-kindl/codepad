@@ -105,6 +105,32 @@ public sealed class ExperimentCatalogTests
     }
 
     [Fact]
+    public async Task ChangingTheTitleAndTheSourceTogetherRaisesTheRevisionByOne()
+    {
+        ExperimentCatalog catalog = Catalog();
+        Experiment created = await catalog.CreateAsync(OperationKind.CSharp, "T", "1", TestContext.Current.CancellationToken);
+
+        CatalogUpdate update = await catalog.UpdateAsync(created.Id, "New title", "2", null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(created.Revision + 1, update.Experiment!.Revision);
+    }
+
+    [Fact]
+    public async Task ATwoFieldWriteThatLosesToAConcurrentRevisionIsAConflictNotAnOverwrite()
+    {
+        ExperimentCatalog catalog = Catalog();
+        Experiment created = await catalog.CreateAsync(OperationKind.CSharp, "T", "1", TestContext.Current.CancellationToken);
+        RacingRepository racing = new RacingRepository(repository, created.WithSource("desktop edit", clock.GetUtcNow()));
+
+        CatalogUpdate update = await new ExperimentCatalog(racing, clock).UpdateAsync(created.Id, "cli title", "cli source", null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(CatalogStatus.Conflict, update.Status);
+        Experiment stored = repository.Stored(created.Id)!;
+        Assert.Equal("desktop edit", stored.Source);
+        Assert.Equal("T", stored.Title);
+    }
+
+    [Fact]
     public async Task UpdateWithNothingNewIsUpdatedAndDoesNotRaiseTheRevision()
     {
         ExperimentCatalog catalog = Catalog();
